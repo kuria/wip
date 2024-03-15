@@ -1,0 +1,8 @@
+parameters:
+    level: max
+    paths:
+        - src/Iterable
+        - src/Maybe
+        - src/Result
+includes:
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
