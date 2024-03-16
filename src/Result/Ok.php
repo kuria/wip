@@ -2,8 +2,7 @@
 
 namespace Kuria\Result;
 
-use Kuria\Maybe\None;
-use Kuria\Maybe\Some;
+use Kuria\Maybe\{Some, None};
 
 /**
  * @template-covariant TValue
