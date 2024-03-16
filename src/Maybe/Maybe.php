@@ -133,4 +133,9 @@ abstract class Maybe
      * @return T
      */
     abstract function unwrap(): mixed;
+
+    /**
+     * @return T|null
+     */
+    abstract function toNullable(): mixed;
 }

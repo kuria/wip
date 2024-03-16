@@ -124,4 +124,13 @@ final class Some extends Maybe
         return $this->value;
     }
 
+    /**
+     * Return the value
+     *
+     * @return T
+     */
+    function toNullable(): mixed
+    {
+        return $this->value;
+    }
 }

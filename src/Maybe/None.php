@@ -110,4 +110,12 @@ final class None extends Maybe
         throw new \LogicException('There is no value');
     }
 
+    /**
+     * Return NULL
+     */
+    function toNullable(): null
+    {
+        return null;
+    }
+
 }
