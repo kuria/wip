@@ -1,8 +1,10 @@
 parameters:
     level: max
     paths:
-        - src/Iterable
-        - src/Maybe
-        - src/Result
+        - src
+    ignoreErrors:
+        -
+          message: '{Variable property access on object}'
+          path: */src/Collections/Map.php
 includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
