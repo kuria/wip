@@ -20,6 +20,8 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     private array $pairs;
 
     /**
+     * Create a map for the given array
+     *
      * @param array<TKey, TValue> $pairs
      */
     function __construct(array $pairs = [])
@@ -42,36 +44,11 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Map values of the given iterable using a callback
-     *
-     * The callback should return a key for each given value.
-     *
-     * If the same key is returned multiple times, only the last returned value will be used.
-     *
-     * @template TInputValue
-     * @template TMappedKey of array-key
-     *
-     * @param iterable<TInputValue> $iterable
-     * @param callable(TInputValue):TMappedKey $mapper
-     * @return static<TMappedKey, TInputValue>
-     */
-    static function map(iterable $iterable, callable $mapper): self
-    {
-        $pairs = [];
-
-        foreach ($iterable as $v) {
-            $pairs[$mapper($v)] = $v;
-        }
-
-        return new static($pairs);
-    }
-
-    /**
      * Build a map from an iterable using a callback
      *
-     * The callback should return key => value pairs for each given key and value.
+     * The callback should return key => value pairs for each key and value.
      *
-     * If the same key is returned multiple times, only the first returned pair with that key will be used.
+     * If the same key is returned multiple times, only the last pair will be used.
      *
      * @template TInputKey
      * @template TInputValue
@@ -79,7 +56,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @template TMappedValue
      *
      * @param iterable<TInputKey, TInputValue> $iterable
-     * @param callable(TInputKey, TInputValue):array<TMappedKey, TMappedValue> $mapper
+     * @param callable(TInputKey, TInputValue):iterable<TMappedKey, TMappedValue> $mapper
      * @return static<TMappedKey, TMappedValue>
      */
     static function build(iterable $iterable, callable $mapper): self
@@ -87,7 +64,9 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $pairs = [];
 
         foreach ($iterable as $k => $v) {
-            $pairs += $mapper($k, $v);
+            foreach ($mapper($k, $v) as $mappedKey => $mappedValue) {
+                $pairs[$mappedKey] = $mappedValue;
+            }
         }
 
         return new static($pairs);
@@ -231,18 +210,50 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Add pairs from other iterables to this map
+     * Insert a pair before a key
      *
-     * If the same key exists in multiple iterables, the last value will be used.
+     * If the key does not exist, the pair is inserted at the beginning.
      *
-     * @param iterable<TKey, TValue> ...$iterables
+     * @param TKey $beforeKey
+     * @param iterable<TKey, TValue> $pairs
      */
-    function add(iterable ...$iterables): void
+    function insertBefore(mixed $beforeKey, iterable $pairs): void
     {
-        foreach ($iterables as $iterable) {
-            foreach ($iterable as $k => $v) {
-                $this->pairs[$k] = $v;
-            }
+        if (\array_key_exists($beforeKey, $this->pairs)) {
+            $this->pairs = $this->rebuild(self::createInsertBeforeMapper($beforeKey, $pairs))->pairs;
+        } else {
+            $this->pairs = IterableConverter::toArray($pairs) + $this->pairs;
+        }
+    }
+
+    /**
+     * Insert a pair after a key
+     *
+     * If the key does not exist, the pair is inserted at the end.
+     *
+     * @param TKey $afterKey
+     * @param iterable<TKey, TValue> $pairs
+     */
+    function insertAfter(mixed $afterKey, iterable $pairs): void
+    {
+        if (\array_key_exists($afterKey, $this->pairs)) {
+            $this->pairs = $this->rebuild(self::createInsertAfterMapper($afterKey, $pairs))->pairs;
+        } else {
+            $this->add($pairs);
+        }
+    }
+
+    /**
+     * Add pairs from the given iterable to this map
+     *
+     * If the same key already exists, it will be overwritten.
+     *
+     * @param iterable<TKey, TValue> $pairs
+     */
+    function add(iterable $pairs): void
+    {
+        foreach ($pairs as $k => $v) {
+            $this->pairs[$k] = $v;
         }
     }
 
@@ -432,29 +443,101 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Remap pairs using the given callback
+     * Call the callback with each pair
      *
-     * The callback should accept 2 arguments (key and value) and return new key => value pairs.
+     * The callback's return value is ignored.
      *
-     * If the same key is returned multiple times, only the first returned pair with that key will be used.
+     * @param callable(TKey, TValue):mixed $callback
+     */
+    function walk(callable $callback): void
+    {
+        foreach ($this->pairs as $k => $v) {
+            $callback($k, $v);
+        }
+    }
+
+    /**
+     * Map pairs to new keys using the given callback
      *
-     * Returns a new map with the returned pairs.
+     * The callback should accept 2 arguments (key and value) and return a new key.
      *
-     * @template TNextKey of array-key
-     * @template TNextValue
+     * If the same key is returned multiple times, only the last occurrence will be kept.
      *
-     * @param callable(TKey, TValue):array<TNextKey, TNextValue> $mapper
-     * @return static<TNextKey, TNextValue>
+     * @template TMappedKey of array-key
+     *
+     * @param callable(TKey, TValue):TMappedKey $mapper
+     * @return static<TMappedKey, TValue>
      */
     function remap(callable $mapper): self
     {
         $pairs = [];
 
         foreach ($this->pairs as $k => $v) {
-            $pairs += $mapper($k, $v);
+            $pairs[$mapper($k, $v)] = $v;
         }
 
         return new static($pairs);
+    }
+
+    /**
+     * Rebuild the map using the given callback
+     *
+     * The callback should accept 2 arguments (key and value) and return new key => value pairs.
+     *
+     * If the same key is returned multiple times, only the last pair will be used.
+     *
+     * Returns a new map with the returned pairs.
+     *
+     * @template TNextKey of array-key
+     * @template TNextValue
+     *
+     * @param callable(TKey, TValue):iterable<TNextKey, TNextValue> $mapper
+     * @return static<TNextKey, TNextValue>
+     */
+    function rebuild(callable $mapper): self
+    {
+        $pairs = [];
+
+        foreach ($this->pairs as $k => $v) {
+            foreach ($mapper($k, $v) as $mappedKey => $mappedValue) {
+                $pairs[$mappedKey] = $mappedValue;
+            }
+        }
+
+        return new static($pairs);
+    }
+
+    /**
+     * Group pairs using a callback
+     *
+     * The callback should accept 2 arguments (key and value) and return a group key.
+     *
+     * Returns a new map with the grouped pairs.
+     *
+     * @template TGroupKey of array-key
+     *
+     * @param callable(TKey, TValue):TGroupKey $grouper
+     * @return static<TGroupKey, static<TKey, TValue>>
+     */
+    function group(callable $grouper): self
+    {
+        /** @var static<TGroupKey, static<TKey, TValue>> $groups */
+        $groups = new static();
+
+        foreach ($this->pairs as $k => $v) {
+            $groupKey = $grouper($k, $v);
+
+            $groups->get($groupKey)
+                ->orElse(static function () use ($groups, $groupKey) {
+                    $group = new static();
+                    $groups->set($groupKey, $group);
+
+                    return new Some($group);
+                })
+                ->andDo(static fn (self $group) => $group->set($k, $v)); // @phpstan-ignore argument.type (false positive)
+        }
+
+        return $groups;
     }
 
     /**
@@ -815,5 +898,37 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     function getIterator(): \Traversable
     {
         return new \ArrayIterator($this->pairs);
+    }
+
+    /**
+     * @param TKey $beforeKey
+     * @param iterable<TKey, TValue> $pairs
+     * @return \Closure(TKey, TValue):iterable<TKey, TValue>
+     */
+    private static function createInsertBeforeMapper(mixed $beforeKey, iterable $pairs): \Closure
+    {
+        return static function (mixed $k, mixed $v) use ($beforeKey, $pairs) {
+            if ($k === $beforeKey) {
+                yield from $pairs;
+            }
+
+            yield $k => $v;
+        };
+    }
+
+    /**
+     * @param TKey $afterKey
+     * @param iterable<TKey, TValue> $pairs
+     * @return \Closure(TKey, TValue):iterable<TKey, TValue>
+     */
+    private static function createInsertAfterMapper(mixed $afterKey, iterable $pairs): \Closure
+    {
+        return static function (mixed $k, mixed $v) use ($afterKey, $pairs) {
+            yield $k => $v;
+
+            if ($k === $afterKey) {
+                yield from $pairs;
+            }
+        };
     }
 }

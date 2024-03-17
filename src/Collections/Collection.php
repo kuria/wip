@@ -19,6 +19,8 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     private array $values;
 
     /**
+     * Create a collection for the given list of values
+     *
      * @param list<T> $values
      */
     function __construct(array $values = [])
@@ -150,10 +152,10 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function findUsing(callable $filter): Maybe
     {
-        foreach ($this->values as $index => $value) {
-            if ($filter($value)) {
+        foreach ($this->values as $i => $v) {
+            if ($filter($v)) {
                 /** @var Maybe<non-negative-int> */
-                return new Some($index);
+                return new Some($i);
             }
         }
 
@@ -169,34 +171,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function get(int $index): Maybe
     {
         return \array_key_exists($index, $this->values) ? new Some($this->values[$index]) : new None();
-    }
-
-    /**
-     * Set a value at the given index
-     *
-     * The index must point to an existing value or the end of the collection.
-     *
-     * @throws \OutOfRangeException if $index is not valid
-     *
-     * @param T $value
-     */
-    function set(int $index, mixed $value): void
-    {
-        $count = \count($this->values);
-
-        if ($index < 0) {
-            throw new \OutOfRangeException('Negative index given');
-        }
-
-        if ($index > $count) {
-            throw new \OutOfRangeException(\sprintf(
-                'Cannot set value at index %d because it is beyond the end of the collection %d',
-                $index,
-                $count,
-            ));
-        }
-
-        $this->values[$index] = $value;
     }
 
     /**
@@ -222,26 +196,29 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Get all indexes
+     * Set a value at the given index
      *
-     * @return list<non-negative-int>
+     * The index must point to an existing value or the end of the collection.
+     *
+     * @param T $value
      */
-    function indexes(): array
+    function set(int $index, mixed $value): void
     {
-        /** @var list<non-negative-int> */
-        return \array_keys($this->values);
-    }
+        $count = \count($this->values);
 
-    /**
-     * Extract a slice of the collection
-     *
-     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
-     *
-     * @return static<T>
-     */
-    function slice(int $index, ?int $length = null): self
-    {
-        return new static(\array_slice($this->values, $index, $length));
+        if ($index < 0) {
+            throw new \OutOfRangeException('Negative index given');
+        }
+
+        if ($index > $count) {
+            throw new \OutOfRangeException(\sprintf(
+                'Cannot set value at index %d because it is beyond the end of the collection (count = %d)',
+                $index,
+                $count,
+            ));
+        }
+
+        $this->values[$index] = $value;
     }
 
     /**
@@ -252,6 +229,18 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function push(mixed ...$values): void
     {
         \array_push($this->values, ...$values);
+    }
+
+    /**
+     * Add values from the given iterable to this collection
+     *
+     * @param iterable<T> $values
+     */
+    function add(iterable $values): void
+    {
+        foreach ($values as $v) {
+            $this->values[] = $v;
+        }
     }
 
     /**
@@ -312,6 +301,29 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function pad(int $length, mixed $value): void
     {
         $this->values = \array_pad($this->values, $length, $value);
+    }
+
+    /**
+     * Get all indexes
+     *
+     * @return static<non-negative-int>
+     */
+    function indexes(): self
+    {
+        /** @var static<non-negative-int> */
+        return new static(\array_keys($this->values));
+    }
+
+    /**
+     * Extract a slice of the collection
+     *
+     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
+     *
+     * @return static<T>
+     */
+    function slice(int $index, ?int $length = null): self
+    {
+        return new static(\array_slice($this->values, $index, $length));
     }
 
     /**
@@ -441,14 +453,15 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      * The last chunk might be smaller if collection size is not a multiple of $size.
      *
      * @param positive-int $size
-     * @return list<static>
+     * @return static<static<T>>
      */
-    function chunk(int $size): array
+    function chunk(int $size): self
     {
-        $chunks = [];
+        /** @var static<static<T>> $chunks */
+        $chunks = new static();
 
         foreach (\array_chunk($this->values, $size) as $chunk) {
-            $chunks[] = new static($chunk);
+            $chunks->push(new static($chunk));
         }
 
         return $chunks;
@@ -459,14 +472,14 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      *
      * The last chunk might be smaller if collection size is not a multiple of $size.
      *
-     * @return list<static>
+     * @return static<static<T>>
      */
-    function split(int $number): array
+    function split(int $number): self
     {
         $count = \count($this->values);
 
         if ($count === 0 || $number < 1) {
-            return [];
+            return new static();
         }
 
         // @phpstan-ignore argument.type (cannot be less than 1)
@@ -595,20 +608,59 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Convert the collection to a map
+     * Call the callback with each value
      *
-     * The callback should return a key for each given value.
+     * The callback's return value is ignored.
      *
-     * If the same key is returned multiple times, only the last returned value will be used.
-     *
-     * @template TMappedKey of array-key
-     *
-     * @param callable(T):TMappedKey $mapper
-     * @return Map<TMappedKey, T>
+     * @param callable(T):mixed $callback
      */
-    function map(callable $mapper): Map
+    function walk(callable $callback): void
     {
-        return Map::map($this->values, $mapper);
+        foreach ($this->values as $value) {
+            $callback($value);
+        }
+    }
+
+    /**
+     * Convert the collection into a map directly
+     *
+     * @return Map<non-negative-int, T>
+     */
+    function toMap(): Map
+    {
+        /** @var Map<non-negative-int, T> */
+        return new Map($this->values);
+    }
+
+    /**
+     * Group values using a callback
+     *
+     * The callback should return a group key for each value.
+     *
+     * @template TGroupKey of array-key
+     *
+     * @param callable(T):TGroupKey $grouper
+     * @return Map<TGroupKey, static<T>>
+     */
+    function group(callable $grouper): Map
+    {
+        /** @var Map<TGroupKey, static<T>> $groups */
+        $groups = new Map();
+
+        foreach ($this->values as $v) {
+            $groupKey = $grouper($v);
+
+            $groups->get($groupKey)
+                ->orElse(static function () use ($groups, $groupKey) {
+                    $group = new static();
+                    $groups->set($groupKey, $group);
+
+                    return new Some($group);
+                })
+                ->andDo(static fn (self $group) => $group->push($v)); // @phpstan-ignore argument.type (false positive)
+        }
+
+        return $groups;
     }
 
     /**
