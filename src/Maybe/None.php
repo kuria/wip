@@ -7,6 +7,11 @@ namespace Kuria\Maybe;
  */
 final class None extends Maybe
 {
+    function __construct(mixed ...$context)
+    {
+        $this->context = $context;
+    }
+
     /**
      * This is NOT some
      */
