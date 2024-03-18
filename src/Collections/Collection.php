@@ -54,23 +54,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Create a collection and populate it with repeated values
-     *
-     * @template TValue
-     *
-     * @param TValue $value
-     * @return static<TValue>
-     */
-    static function fill(mixed $value, int $count): self
-    {
-        if ($count <= 0) {
-            return new static();
-        }
-
-        return new static(\array_fill(0, $count, $value));
-    }
-
-    /**
      * Create a collection by splitting a string
      *
      * If $limit is negative, all parts except the last -$limit will be returned.
@@ -81,16 +64,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     static function explode(string $string, string $delimiter, int $limit = PHP_INT_MAX): self
     {
         return new static(\explode($delimiter, $string, $limit));
-    }
-
-    /**
-     * Replace all values with the given iterable
-     *
-     * @param iterable<T> $values
-     */
-    function setValues(iterable $values): void
-    {
-        $this->values = IterableConverter::toList($values);
     }
 
     /**
@@ -211,107 +184,13 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Push one or more values onto the end of the collection
-     *
-     * @param T ...$values
-     */
-    function push(mixed ...$values): void
-    {
-        \array_push($this->values, ...$values);
-    }
-
-    /**
-     * Add values from the given iterable to this collection
+     * Replace all values with the given iterable
      *
      * @param iterable<T> $values
      */
-    function add(iterable $values): void
+    function setValues(iterable $values): void
     {
-        foreach ($values as $v) {
-            $this->values[] = $v;
-        }
-    }
-
-    /**
-     * Pop a value off the end of the collection
-     *
-     * @return Maybe<T>
-     */
-    function pop(): Maybe
-    {
-        return \count($this->values) > 0 ? new Some(\array_pop($this->values)) : new None();
-    }
-
-    /**
-     * Prepend one or more values to the beginning of the collection
-     *
-     * Multiple values are prepended as a whole, so they stay in the same order.
-     *
-     * @param T ...$values
-     */
-    function unshift(mixed ...$values): void
-    {
-        \array_unshift($this->values, ...$values);
-    }
-
-    /**
-     * Shift a value off the beginning of the collection
-     *
-     * @return Maybe<T>
-     */
-    function shift(): Maybe
-    {
-        return \count($this->values) > 0 ? new Some(\array_shift($this->values)) : new None();
-    }
-
-    /**
-     * Insert one or more values at the given index
-     *
-     * Any existing values at or after the index will be re-indexed.
-     *
-     * If $index is negative, it is treated as an offset from the end of the collection.
-     *
-     * @param T ...$values
-     */
-    function insert(int $index, mixed ...$values): void
-    {
-        if (\count($values) > 0) {
-            \array_splice($this->values, $index, 0, $values);
-        }
-    }
-
-    /**
-     * Pad the collection with a value to the specified length
-     *
-     * If $length is positive, the new values are appended. Otherwise, they are prepended.
-     *
-     * @param T $value
-     */
-    function pad(int $length, mixed $value): void
-    {
-        $this->values = \array_pad($this->values, $length, $value); // @phpstan-ignore-line (array_pad re-indexes numeric arrays)
-    }
-
-    /**
-     * Get all indexes
-     *
-     * @return static<non-negative-int>
-     */
-    function indexes(): self
-    {
-        return new static(\array_keys($this->values));
-    }
-
-    /**
-     * Extract a slice of the collection
-     *
-     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
-     *
-     * @return static<T>
-     */
-    function slice(int $index, ?int $length = null): self
-    {
-        return new static(\array_slice($this->values, $index, $length));
+        $this->values = IterableConverter::toList($values);
     }
 
     /**
@@ -349,13 +228,83 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
+     * Push one or more values onto the end of the collection
+     *
+     * @param T ...$values
+     */
+    function push(mixed ...$values): void
+    {
+        \array_push($this->values, ...$values);
+    }
+
+    /**
+     * Pop a value off the end of the collection
+     *
+     * @return Maybe<T>
+     */
+    function pop(): Maybe
+    {
+        return \count($this->values) > 0 ? new Some(\array_pop($this->values)) : new None();
+    }
+
+    /**
+     * Shift a value off the beginning of the collection
+     *
+     * @return Maybe<T>
+     */
+    function shift(): Maybe
+    {
+        return \count($this->values) > 0 ? new Some(\array_shift($this->values)) : new None();
+    }
+
+    /**
+     * Prepend one or more values to the beginning of the collection
+     *
+     * Multiple values are prepended as a whole, so they stay in the same order.
+     *
+     * @param T ...$values
+     */
+    function unshift(mixed ...$values): void
+    {
+        \array_unshift($this->values, ...$values);
+    }
+
+    /**
+     * Push values from the given iterable onto the end of the collection
+     *
+     * @param iterable<T> $values
+     */
+    function add(iterable $values): void
+    {
+        foreach ($values as $v) {
+            $this->values[] = $v;
+        }
+    }
+
+    /**
+     * Insert one or more values at the given index
+     *
+     * Any existing values at or after the index will be re-indexed.
+     *
+     * If $index is negative, it is treated as an offset from the end of the collection.
+     *
+     * @param T ...$values
+     */
+    function insert(int $index, mixed ...$values): void
+    {
+        if (\count($values) > 0) {
+            \array_splice($this->values, $index, 0, $values);
+        }
+    }
+
+    /**
      * Remove or replace a part of the collection
      *
      * Both $index and $length can be negative, in which case they are relative to the end of the collection.
      *
      * If $length is NULL, all elements until the end of the collection are removed or replaced.
      *
-     * @param iterable<T> $replacement
+     * @param iterable<T>|null $replacement
      */
     function splice(int $index, ?int $length = null, ?iterable $replacement = null): void
     {
@@ -368,9 +317,21 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
+     * Pad the collection with a value to the specified length
+     *
+     * If $length is positive, the new values are appended. Otherwise, they are prepended.
+     *
+     * @param T $value
+     */
+    function pad(int $length, mixed $value): void
+    {
+        $this->values = \array_pad($this->values, $length, $value); // @phpstan-ignore-line (array_pad re-indexes numeric arrays)
+    }
+
+    /**
      * Calculate the sum of all values (value1 + ... + valueN)
      *
-     * Note that this method only operates on numeric values.
+     * All values must be numeric.
      *
      * Returns 0 if the collection is empty.
      */
@@ -382,7 +343,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     /**
      * Calculate the product of all values (value1 * ... * valueN)
      *
-     * Note that this method only operates on numeric values.
+     * All values must be numeric.
      *
      * Returns 1 if the collection is empty.
      */
@@ -423,15 +384,25 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Reverse the collection
+     * Get all indexes
      *
-     * Returns a new collection with values in reverse order.
+     * @return static<non-negative-int>
+     */
+    function indexes(): self
+    {
+        return new static(\array_keys($this->values));
+    }
+
+    /**
+     * Extract a slice of the collection
+     *
+     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
      *
      * @return static<T>
      */
-    function reverse(): self
+    function slice(int $index, ?int $length = null): self
     {
-        return new static(\array_reverse($this->values));
+        return new static(\array_slice($this->values, $index, $length));
     }
 
     /**
@@ -470,6 +441,18 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         }
 
         return $this->chunk((int) \ceil($count / $number)); // @phpstan-ignore argument.type (cannot be less than 1)
+    }
+
+    /**
+     * Reverse the collection
+     *
+     * Returns a new collection with values in reverse order.
+     *
+     * @return static<T>
+     */
+    function reverse(): self
+    {
+        return new static(\array_reverse($this->values));
     }
 
     /**
@@ -544,18 +527,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Build a map using properties or array indexes of all object or array values
-     *
-     * If $valueKey is NULL, the complete arrays or objects are mapped to each index.
-     *
-     * @return Map<array-key, mixed>
-     */
-    function mapColumn(int|string $indexKey, int|string|null $valueKey): Map
-    {
-        return new Map(\array_column($this->values, $valueKey, $indexKey));
-    }
-
-    /**
      * Filter values using the given callback
      *
      * The callback should return TRUE to accept a value and FALSE to reject it.
@@ -605,48 +576,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         foreach ($this->values as $value) {
             $callback($value);
         }
-    }
-
-    /**
-     * Convert the collection into a map directly
-     *
-     * @return Map<non-negative-int, T>
-     */
-    function toMap(): Map
-    {
-        /** @var Map<non-negative-int, T> */
-        return new Map($this->values);
-    }
-
-    /**
-     * Group values using a callback
-     *
-     * The callback should return a group key for each value.
-     *
-     * @template TGroupKey of array-key
-     *
-     * @param callable(T):TGroupKey $grouper
-     * @return Map<TGroupKey, static<T>>
-     */
-    function group(callable $grouper): Map
-    {
-        /** @var Map<TGroupKey, static<T>> $groups */
-        $groups = new Map();
-
-        foreach ($this->values as $v) {
-            $groupKey = $grouper($v);
-
-            $groups->get($groupKey)
-                ->orElse(static function () use ($groups, $groupKey) {
-                    $group = new static();
-                    $groups->set($groupKey, $group);
-
-                    return new Some($group);
-                })
-                ->andDo(static fn (self $group) => $group->push($v));
-        }
-
-        return $groups;
     }
 
     /**
@@ -816,6 +745,51 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         \usort($values, $comparator);
 
         return new static($values);
+    }
+
+    /**
+     * Group values using a callback
+     *
+     * The callback should return a group key for each value.
+     *
+     * @template TGroupKey of array-key
+     *
+     * @param callable(T):TGroupKey $grouper
+     * @return Map<TGroupKey, static<T>>
+     */
+    function group(callable $grouper): Map
+    {
+        /** @var Map<TGroupKey, static<T>> $groups */
+        $groups = new Map();
+
+        foreach ($this->values as $v) {
+            ($groups[$grouper($v)] ??= new static())->push($v);
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Build a map using properties or array indexes of all object or array values
+     *
+     * If $valueKey is NULL, the complete arrays or objects are mapped to each index.
+     *
+     * @return ($valueKey is null ? Map<array-key, T> : Map<array-key, mixed>)
+     */
+    function mapColumn(int|string $indexKey, int|string|null $valueKey = null): Map
+    {
+        return new Map(\array_column($this->values, $valueKey, $indexKey));
+    }
+
+    /**
+     * Convert the collection into a map directly
+     *
+     * @return Map<non-negative-int, T>
+     */
+    function toMap(): Map
+    {
+        /** @var Map<non-negative-int, T> */
+        return new Map($this->values);
     }
 
     function count(): int
