@@ -175,7 +175,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function set(int $index, mixed $value): void
     {
         if (\array_key_exists($index, $this->values)) {
-            $this->values[$index] = $value; // @phpstan-ignore-line (index is verified)
+            $this->values[$index] = $value;
         } elseif ($index === \count($this->values)) {
             $this->values[] = $value;
         } else {
@@ -213,7 +213,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         }
 
         foreach ($indexes as $index) {
-            unset($this->values[$index]); // @phpstan-ignore-line (re-indexed below)
+            unset($this->values[$index]);
         }
 
         $this->values = \array_values($this->values);
@@ -325,7 +325,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function pad(int $length, mixed $value): void
     {
-        $this->values = \array_pad($this->values, $length, $value); // @phpstan-ignore-line (array_pad re-indexes numeric arrays)
+        $this->values = \array_pad($this->values, $length, $value);
     }
 
     /**
@@ -416,7 +416,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function chunk(int $size): self
     {
         /** @var static<static<T>> $chunks */
-        $chunks = new static(); // @phpstan-ignore varTag.nativeType (bug)
+        $chunks = new static();
 
         foreach (\array_chunk($this->values, $size) as $chunk) {
             $chunks->push(new static($chunk));
@@ -440,7 +440,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
             return new static();
         }
 
-        return $this->chunk((int) \ceil($count / $number)); // @phpstan-ignore argument.type (cannot be less than 1)
+        return $this->chunk((int) \ceil($count / $number));
     }
 
     /**
@@ -645,7 +645,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toLists($iterables);
         $args[] = $comparator;
 
-        return new static(\array_values(\array_uintersect($this->values, ...$args))); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_values(\array_uintersect($this->values, ...$args)));
     }
 
     /**
@@ -690,7 +690,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toLists($iterables);
         $args[] = $comparator;
 
-        return new static(\array_values(\array_udiff($this->values, ...$args))); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_values(\array_udiff($this->values, ...$args)));
     }
 
     /**

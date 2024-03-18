@@ -1,10 +1,55 @@
 parameters:
     level: max
     paths:
-        - src
+        - src/Collections/
+        - src/Iterable/
+        - src/Maybe/
+        - src/Result/
     ignoreErrors:
+        ###############
+        # Collections #
+        ###############
+
+        # https://github.com/phpstan/phpstan/issues/10735
+        - identifier: varTag.nativeType
+          paths:
+              - '*/src/Collections/Collection.php'
+              - '*/src/Collections/Map.php'
+
+        - message: '{Map<TGroupKey of \(int\|string\)}'
+          path: '*/src/Collections/Map.php'
+
+        # array user intersection and diff functions work with a single argument too
+        - message: '{Parameter #2 \$arr2 of function array_\w*(intersect|diff)}'
+          identifier: argument.type
+          paths:
+              - '*/src/Collections/Collection.php'
+              - '*/src/Collections/Map.php'
+
+        # list type limitations
+        - message: '{::\$values \(list<T>\) does not accept (non-empty-)?array}'
+          identifier: assign.propertyType
+          path: '*/src/Collections/Collection.php'
+
+        # size cannot be be non-positive in Collection::split()
+        - message: '{::chunk\(\) expects int<1, max>}'
+          identifier: argument.type
+          path: '*/src/Collections/Collection.php'
+
+        # documented behavior of Map::flip()
+        - message: '{Cannot cast TValue to string}'
+          identifier: cast.string
+          path: '*/src/Collections/Map.php'
+
+        # maps do not support appending and keys cannot be NULL
+        - message: '{Map::offsetSet\(\) should be contravariant with parameter \$offset}'
+          identifier: method.childParameterType
+          path: '*/src/Collections/Map.php'
+
+        # mimicking array_column() behavior
         - message: '{Variable property access on object}'
-          path: */src/Collections/Map.php
+          path: '*/src/Collections/Map.php'
+
 includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - phar://phpstan.phar/conf/bleedingEdge.neon

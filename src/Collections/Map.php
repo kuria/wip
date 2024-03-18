@@ -299,7 +299,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $pairs = [];
 
         foreach ($this->pairs as $k => $v) {
-            $pairs[(string) $v] = $k; // @phpstan-ignore cast.string (documented)
+            $pairs[(string) $v] = $k;
         }
 
         return new static($pairs);
@@ -470,7 +470,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        return new static(\array_uintersect_assoc($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_uintersect_assoc($this->pairs, ...$args));
     }
 
     /**
@@ -513,7 +513,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        return new static(\array_intersect_ukey($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_intersect_ukey($this->pairs, ...$args));
     }
 
     /**
@@ -558,7 +558,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        return new static(\array_udiff_assoc($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_udiff_assoc($this->pairs, ...$args));
     }
 
     /**
@@ -602,7 +602,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args[] = $comparator;
 
 
-        return new static(\array_diff_ukey($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
+        return new static(\array_diff_ukey($this->pairs, ...$args));
     }
 
     /**
@@ -728,10 +728,11 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function group(callable $grouper): self
     {
+        /** @var static<TGroupKey, static<TKey, TValue>> $groups */
         $groups = new static();
 
         foreach ($this->pairs as $k => $v) {
-            ($groups[$grouper($k, $v)] ??= new static())->set($k, $v); // @phpstan-ignore-line (false positive)
+            ($groups[$grouper($k, $v)] ??= new static())->set($k, $v);
         }
 
         return $groups;
@@ -816,7 +817,6 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @param TValue $value
      *
      * @note maps do not support appending with "[]" - use {@see Collection}
-     * @phpstan-ignore method.childParameterType (array-key does not include NULL)
      */
     function offsetSet(mixed $offset, mixed $value): void
     {
