@@ -12,21 +12,20 @@ use Kuria\Maybe\{Maybe, Some, None};
  * @template TValue
  * @implements \ArrayAccess<TKey, TValue>
  * @implements \IteratorAggregate<TKey, TValue>
+ *
  * @phpstan-consistent-constructor
+ * @psalm-consistent-constructor
+ * @psalm-consistent-templates
  */
 class Map implements \Countable, \ArrayAccess, \IteratorAggregate
 {
-    /** @var array<TKey, TValue> */
-    private array $pairs;
-
     /**
      * Create a map for the given array
      *
      * @param array<TKey, TValue> $pairs
      */
-    function __construct(array $pairs = [])
+    function __construct(protected array $pairs = [])
     {
-        $this->pairs = $pairs;
     }
 
     /**
@@ -122,7 +121,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      *
      * @param TKey $key
      */
-    function has(mixed $key): bool
+    function has(int|string $key): bool
     {
         return \array_key_exists($key, $this->pairs);
     }
@@ -173,7 +172,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @param TKey $key
      * @return Maybe<TValue>
      */
-    function get(mixed $key): Maybe
+    function get(int|string $key): Maybe
     {
         return \array_key_exists($key, $this->pairs) ? new Some($this->pairs[$key]) : new None();
     }
@@ -204,7 +203,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @param TKey $key
      * @param TValue $value
      */
-    function set(mixed $key, mixed $value): void
+    function set(int|string $key, mixed $value): void
     {
         $this->pairs[$key] = $value;
     }
@@ -217,10 +216,10 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @param TKey $beforeKey
      * @param iterable<TKey, TValue> $pairs
      */
-    function insertBefore(mixed $beforeKey, iterable $pairs): void
+    function insertBefore(int|string $beforeKey, iterable $pairs): void
     {
         if (\array_key_exists($beforeKey, $this->pairs)) {
-            $this->pairs = $this->rebuild(self::createInsertBeforeMapper($beforeKey, $pairs))->pairs;
+            $this->pairs = $this->rebuild(self::createInsertionBuilder($beforeKey, $pairs, false))->pairs;
         } else {
             $this->pairs = IterableConverter::toArray($pairs) + $this->pairs;
         }
@@ -234,10 +233,10 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @param TKey $afterKey
      * @param iterable<TKey, TValue> $pairs
      */
-    function insertAfter(mixed $afterKey, iterable $pairs): void
+    function insertAfter(int|string $afterKey, iterable $pairs): void
     {
         if (\array_key_exists($afterKey, $this->pairs)) {
-            $this->pairs = $this->rebuild(self::createInsertAfterMapper($afterKey, $pairs))->pairs;
+            $this->pairs = $this->rebuild(self::createInsertionBuilder($afterKey, $pairs, true))->pairs;
         } else {
             $this->add($pairs);
         }
@@ -275,7 +274,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      *
      * @param TKey ...$keys
      */
-    function remove(mixed ...$keys): void
+    function remove(int|string ...$keys): void
     {
         foreach ($keys as $k) {
             unset($this->pairs[$k]);
@@ -329,7 +328,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $pairs = [];
 
         foreach ($this->pairs as $k => $v) {
-            $pairs[(string) $v] = $k;
+            $pairs[(string) $v] = $k; // @phpstan-ignore cast.string (documented)
         }
 
         return new static($pairs);
@@ -491,15 +490,15 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      * @template TNextKey of array-key
      * @template TNextValue
      *
-     * @param callable(TKey, TValue):iterable<TNextKey, TNextValue> $mapper
+     * @param callable(TKey, TValue):iterable<TNextKey, TNextValue> $builder
      * @return static<TNextKey, TNextValue>
      */
-    function rebuild(callable $mapper): self
+    function rebuild(callable $builder): self
     {
         $pairs = [];
 
         foreach ($this->pairs as $k => $v) {
-            foreach ($mapper($k, $v) as $mappedKey => $mappedValue) {
+            foreach ($builder($k, $v) as $mappedKey => $mappedValue) {
                 $pairs[$mappedKey] = $mappedValue;
             }
         }
@@ -522,7 +521,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     function group(callable $grouper): self
     {
         /** @var static<TGroupKey, static<TKey, TValue>> $groups */
-        $groups = new static();
+        $groups = new static(); // @phpstan-ignore varTag.nativeType (bug)
 
         foreach ($this->pairs as $k => $v) {
             $groupKey = $grouper($k, $v);
@@ -534,7 +533,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
 
                     return new Some($group);
                 })
-                ->andDo(static fn (self $group) => $group->set($k, $v)); // @phpstan-ignore argument.type (false positive)
+                ->andDo(static fn (self $group) => $group->set($k, $v));
         }
 
         return $groups;
@@ -601,8 +600,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_uintersect_assoc($this->pairs, ...$args));
+        return new static(\array_uintersect_assoc($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**
@@ -645,8 +643,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_intersect_ukey($this->pairs, ...$args));
+        return new static(\array_intersect_ukey($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**
@@ -691,8 +688,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_udiff_assoc($this->pairs, ...$args));
+        return new static(\array_udiff_assoc($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**
@@ -735,8 +731,8 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toArrays($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_diff_ukey($this->pairs, ...$args));
+
+        return new static(\array_diff_ukey($this->pairs, ...$args)); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**
@@ -872,16 +868,15 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * @param TKey|null $offset
+     * @param TKey $offset
      * @param TValue $value
+     *
+     * @note maps do not support appending with "[]" - use {@see Collection}
+     * @phpstan-ignore method.childParameterType (array-key does not include NULL)
      */
     function offsetSet(mixed $offset, mixed $value): void
     {
-        if ($offset === null) {
-            $this->pairs[] = $value;
-        } else {
-            $this->pairs[$offset] = $value;
-        }
+        $this->pairs[$offset] = $value;
     }
 
     /**
@@ -901,34 +896,26 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * @param TKey $beforeKey
+     * @param TKey $targetKey
      * @param iterable<TKey, TValue> $pairs
      * @return \Closure(TKey, TValue):iterable<TKey, TValue>
      */
-    private static function createInsertBeforeMapper(mixed $beforeKey, iterable $pairs): \Closure
+    private static function createInsertionBuilder(int|string $targetKey, iterable $pairs, bool $after): \Closure
     {
-        return static function (mixed $k, mixed $v) use ($beforeKey, $pairs) {
-            if ($k === $beforeKey) {
-                yield from $pairs;
+        return $after
+            ? static function ($k, $v) use ($targetKey, $pairs) {
+                yield $k => $v;
+
+                if ($k === $targetKey) {
+                    yield from $pairs;
+                }
             }
+            : static function ($k, $v) use ($targetKey, $pairs) {
+                if ($k === $targetKey) {
+                    yield from $pairs;
+                }
 
-            yield $k => $v;
-        };
-    }
-
-    /**
-     * @param TKey $afterKey
-     * @param iterable<TKey, TValue> $pairs
-     * @return \Closure(TKey, TValue):iterable<TKey, TValue>
-     */
-    private static function createInsertAfterMapper(mixed $afterKey, iterable $pairs): \Closure
-    {
-        return static function (mixed $k, mixed $v) use ($afterKey, $pairs) {
-            yield $k => $v;
-
-            if ($k === $afterKey) {
-                yield from $pairs;
-            }
-        };
+                yield $k => $v;
+            };
     }
 }

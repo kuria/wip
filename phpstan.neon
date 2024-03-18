@@ -2,9 +2,6 @@ parameters:
     level: max
     paths:
         - src
-    ignoreErrors:
-        -
-          message: '{Variable property access on object}'
-          path: */src/Collections/Map.php
 includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - phar://phpstan.phar/conf/bleedingEdge.neon

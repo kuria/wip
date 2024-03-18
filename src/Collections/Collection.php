@@ -11,21 +11,20 @@ use Kuria\Maybe\{Maybe, Some, None};
  * @template T
  * @implements \ArrayAccess<int, T>
  * @implements \IteratorAggregate<non-negative-int, T>
+ *
  * @phpstan-consistent-constructor
+ * @psalm-consistent-constructor
+ * @psalm-consistent-templates
  */
 class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
 {
-    /** @var list<T> */
-    private array $values;
-
     /**
      * Create a collection for the given list of values
      *
      * @param list<T> $values
      */
-    function __construct(array $values = [])
+    function __construct(protected array $values = [])
     {
-        $this->values = $values;
     }
 
     /**
@@ -140,7 +139,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     {
         $index = \array_search($value, $this->values, true);
 
-        /** @var Maybe<non-negative-int> */
         return $index !== false ? new Some($index) : new None();
     }
 
@@ -154,7 +152,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     {
         foreach ($this->values as $i => $v) {
             if ($filter($v)) {
-                /** @var Maybe<non-negative-int> */
                 return new Some($i);
             }
         }
@@ -204,21 +201,13 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function set(int $index, mixed $value): void
     {
-        $count = \count($this->values);
-
-        if ($index < 0) {
-            throw new \OutOfRangeException('Negative index given');
+        if (\array_key_exists($index, $this->values)) {
+            $this->values[$index] = $value; // @phpstan-ignore-line (index is verified)
+        } elseif ($index === \count($this->values)) {
+            $this->values[] = $value;
+        } else {
+            throw new \OutOfRangeException(\sprintf('Index %d is out of bounds (0 - %d)', $index, \count($this->values)));
         }
-
-        if ($index > $count) {
-            throw new \OutOfRangeException(\sprintf(
-                'Cannot set value at index %d because it is beyond the end of the collection (count = %d)',
-                $index,
-                $count,
-            ));
-        }
-
-        $this->values[$index] = $value;
     }
 
     /**
@@ -300,7 +289,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function pad(int $length, mixed $value): void
     {
-        $this->values = \array_pad($this->values, $length, $value);
+        $this->values = \array_pad($this->values, $length, $value); // @phpstan-ignore-line (array_pad re-indexes numeric arrays)
     }
 
     /**
@@ -310,7 +299,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function indexes(): self
     {
-        /** @var static<non-negative-int> */
         return new static(\array_keys($this->values));
     }
 
@@ -346,10 +334,9 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         }
 
         foreach ($indexes as $index) {
-            unset($this->values[$index]);
+            unset($this->values[$index]); // @phpstan-ignore-line (re-indexed below)
         }
 
-        // reindex values
         $this->values = \array_values($this->values);
     }
 
@@ -458,7 +445,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function chunk(int $size): self
     {
         /** @var static<static<T>> $chunks */
-        $chunks = new static();
+        $chunks = new static(); // @phpstan-ignore varTag.nativeType (bug)
 
         foreach (\array_chunk($this->values, $size) as $chunk) {
             $chunks->push(new static($chunk));
@@ -482,8 +469,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
             return new static();
         }
 
-        // @phpstan-ignore argument.type (cannot be less than 1)
-        return $this->chunk((int) \ceil($count / $number));
+        return $this->chunk((int) \ceil($count / $number)); // @phpstan-ignore argument.type (cannot be less than 1)
     }
 
     /**
@@ -657,7 +643,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
 
                     return new Some($group);
                 })
-                ->andDo(static fn (self $group) => $group->push($v)); // @phpstan-ignore argument.type (false positive)
+                ->andDo(static fn (self $group) => $group->push($v));
         }
 
         return $groups;
@@ -730,8 +716,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toLists($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_values(\array_uintersect($this->values, ...$args)));
+        return new static(\array_values(\array_uintersect($this->values, ...$args))); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**
@@ -776,8 +761,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         $args = IterableConverter::toLists($iterables);
         $args[] = $comparator;
 
-        // @phpstan-ignore argument.type (works with a single array)
-        return new static(\array_values(\array_udiff($this->values, ...$args)));
+        return new static(\array_values(\array_udiff($this->values, ...$args))); // @phpstan-ignore argument.type (works with a single array)
     }
 
     /**

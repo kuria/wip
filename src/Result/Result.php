@@ -18,6 +18,8 @@ abstract class Result
      *
      * @phpstan-assert-if-true Ok<TValue> $this
      * @phpstan-assert-if-false Error<TError> $this
+     * @psalm-assert-if-true Ok<TValue> $this
+     * @psalm-assert-if-false Error<TError> $this
      */
     abstract function isOk(): bool;
 
@@ -26,6 +28,8 @@ abstract class Result
      *
      * @phpstan-assert-if-true Error<TError> $this
      * @phpstan-assert-if-false Ok<TValue> $this
+     * @psalm-assert-if-true Error<TError> $this
+     * @psalm-assert-if-false Ok<TValue> $this
      */
     abstract function isError(): bool;
 
