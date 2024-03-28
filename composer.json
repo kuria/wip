@@ -5,7 +5,7 @@
     "require-dev": {
         "phpstan/phpstan": "^1.11.x-dev",
         "phpstan/phpstan-strict-rules": "^1.5",
-        "phpunit/phpunit": "^11.0"
+        "vimeo/psalm": "^5.23"
     },
     "autoload": {
         "psr-4": {
