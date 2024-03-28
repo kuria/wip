@@ -38,7 +38,7 @@ final class Ok extends Result
      * Return the given result
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param Result<TNextValue, TNextError> $result
      * @return Result<TNextValue, TNextError>
@@ -52,7 +52,7 @@ final class Ok extends Result
      * Call the given callback with the value and return the next result
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param \Closure(TValue, mixed...):Result<TNextValue, TNextError> $callback
      * @return Result<TNextValue, TNextError>
@@ -65,8 +65,7 @@ final class Ok extends Result
     /**
      * Call the given callback with the value and return $this
      *
-     * @param \Closure(TValue, mixed...):mixed $callback
-     * @return $this
+     * The callback's return value is ignored.
      */
     function andDo(\Closure $callback): Result
     {
@@ -97,8 +96,6 @@ final class Ok extends Result
 
     /**
      * Return $this (callback is not called)
-     *
-     * @return $this
      */
     function orDo(\Closure $callback): Result
     {
@@ -110,7 +107,17 @@ final class Ok extends Result
      *
      * @return $this
      */
-    function handle(string|object $errorType, \Closure $handler): Result
+    function catch(string $errorClass, \Closure $handler): Result
+    {
+        return $this;
+    }
+
+    /**
+     * Return $this (handler is not called)
+     *
+     * @return $this
+     */
+    function handle(mixed $errorValue, \Closure $handler): Result
     {
         return $this;
     }

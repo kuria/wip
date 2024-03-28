@@ -122,5 +122,4 @@ final class None extends Maybe
     {
         return null;
     }
-
 }

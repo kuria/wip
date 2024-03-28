@@ -5,17 +5,17 @@ namespace Kuria\Result;
 use Kuria\Maybe\{Some, None};
 
 /**
- * @template-covariant TError of object
+ * @template-covariant TError
  * @extends Result<never, TError>
  */
 final class Error extends Result
 {
     /**
      * @param TError $error
-     * @param self<object>|null $previous
+     * @param self<mixed>|null $previous
      */
     function __construct(
-        private readonly object $error,
+        private readonly mixed $error,
         private ?self $previous = null,
         mixed ...$context,
     ) {
@@ -23,7 +23,7 @@ final class Error extends Result
     }
 
     /**
-     * This is NOT an ok result
+     * This is NOT an OK result
      */
     function isOk(): false
     {
@@ -60,8 +60,6 @@ final class Error extends Result
 
     /**
      * Return $this (callback is not called)
-     *
-     * @return $this
      */
     function andDo(\Closure $callback): Result
     {
@@ -72,7 +70,7 @@ final class Error extends Result
      * Return the given result
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param Result<TNextValue, TNextError> $result
      * @return Result<TNextValue, TNextError>
@@ -83,10 +81,10 @@ final class Error extends Result
     }
 
     /**
-     * Call the given callback with the error object and return the next result
+     * Call the given callback with the error and return the next result
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param \Closure(TError, mixed...):Result<TNextValue, TNextError> $callback
      * @return Result<TNextValue, TNextError>
@@ -97,10 +95,9 @@ final class Error extends Result
     }
 
     /**
-     * Call the given callback with the error object and return $this
+     * Call the given callback with the error and return $this
      *
-     * @param \Closure(TError, mixed...):mixed $callback
-     * @return $this
+     * The callback's return value is ignored.
      */
     function orDo(\Closure $callback): Result
     {
@@ -110,27 +107,44 @@ final class Error extends Result
     }
 
     /**
-     * If the given error type matches, call the handler with the error object and return the result, otherwise return $this
+     * If the error is an instance of $errorClass, call the handler and return the next result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
-     * @template THandledError of object
+     * @template TNextError
+     * @template TCaughtError of TError
      *
-     * @param class-string<THandledError>|THandledError $errorType
-     * @param \Closure(THandledError, mixed...):Result<TNextValue, TNextError> $handler
-     * @return Result<TNextValue, TNextError>|$this
+     * @param class-string<TCaughtError> $errorClass
+     * @param \Closure(TCaughtError, mixed...):Result<TNextValue, TNextError> $handler
+     * @return Result<TNextValue, TError|TNextError>
      */
-    function handle(string|object $errorType, \Closure $handler): Result
+    function catch(string $errorClass, \Closure $handler): Result
     {
-        if (\is_string($errorType)) {
-            if (!$this->error instanceof $errorType) {
-                return $this;
-            }
-        } elseif ($this->error !== $errorType) {
-            return $this;
+        if ($this->error instanceof $errorClass) {
+            /** @var TCaughtError $this->error */
+            return $handler($this->error);
         }
 
-        return $this->propagate($handler($this->error));
+        return $this;
+    }
+
+    /**
+     * If the error is identical to $errorValue, call the handler and return the next result, otherwise return $this
+     *
+     * @template TNextValue
+     * @template TNextError
+     * @template THandledError of TError
+     *
+     * @param THandledError $errorValue
+     * @param \Closure(THandledError, mixed...):Result<TNextValue, TNextError> $handler
+     * @return Result<TNextValue, TError|TNextError>
+     */
+    function handle(mixed $errorValue, \Closure $handler): Result
+    {
+        if ($this->error === $errorValue) {
+            return $handler($this->error);
+        }
+
+        return $this;
     }
 
     /**
@@ -164,10 +178,16 @@ final class Error extends Result
      */
     function unwrap(): never
     {
-        $message = $this->error::class;
+        if (\is_object($this->error)) {
+            $message = $this->error::class;
 
-        if ($this->error instanceof \UnitEnum) {
-            $message .= '::' . $this->error->name;
+            if ($this->error instanceof \UnitEnum) {
+                $message .= '::' . $this->error->name;
+            }
+        } elseif (\is_scalar($this->error)) {
+            $message = (string) $this->error;
+        } else {
+            $message = \get_debug_type($this->error);
         }
 
         throw new UnhandledError($message, $this);
@@ -176,7 +196,7 @@ final class Error extends Result
     /**
      * Return the error
      */
-    function unwrapError(): object
+    function unwrapError(): mixed
     {
         return $this->error;
     }
@@ -184,7 +204,7 @@ final class Error extends Result
     /**
      * Get the previous error, if any
      *
-     * @return self<object>|null
+     * @return self<mixed>|null
      */
     function getPrevious(): ?self
     {
@@ -195,7 +215,7 @@ final class Error extends Result
      * If the given result is an error, propagate this error into its $previous property (if not set)
      *
      * @template TResultValue
-     * @template TResultError of object
+     * @template TResultError
      *
      * @param Result<TResultValue, TResultError> $result
      * @return Result<TResultValue, TResultError>

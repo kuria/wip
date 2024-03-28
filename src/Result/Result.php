@@ -6,7 +6,7 @@ use Kuria\Maybe\Maybe;
 
 /**
  * @template-covariant TValue
- * @template-covariant TError of object
+ * @template-covariant TError
  */
 abstract class Result
 {
@@ -16,20 +16,20 @@ abstract class Result
     /**
      * See if this is an OK result
      *
-     * @phpstan-assert-if-true Ok<TValue> $this
-     * @phpstan-assert-if-false Error<TError> $this
      * @psalm-assert-if-true Ok<TValue> $this
      * @psalm-assert-if-false Error<TError> $this
+     * @phpstan-assert-if-true Ok<TValue> $this
+     * @phpstan-assert-if-false Error<TError> $this
      */
     abstract function isOk(): bool;
 
     /**
      * See if this is an error result
      *
-     * @phpstan-assert-if-true Error<TError> $this
-     * @phpstan-assert-if-false Ok<TValue> $this
      * @psalm-assert-if-true Error<TError> $this
      * @psalm-assert-if-false Ok<TValue> $this
+     * @phpstan-assert-if-true Error<TError> $this
+     * @phpstan-assert-if-false Ok<TValue> $this
      */
     abstract function isError(): bool;
 
@@ -51,10 +51,10 @@ abstract class Result
      * If this is an OK result, return the given result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param Result<TNextValue, TNextError> $result
-     * @return Result<TNextValue, TNextError>|Error<TError>
+     * @return Result<TNextValue, TError|TNextError>
      */
     abstract function and(Result $result): Result;
 
@@ -62,15 +62,17 @@ abstract class Result
      * If this is an OK result, call the given callback with the value and return the next result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param \Closure(TValue, mixed...):Result<TNextValue, TNextError> $callback
-     * @return Result<TNextValue, TNextError>|Error<TError>
+     * @return Result<TNextValue, TError|TNextError>
      */
     abstract function andThen(\Closure $callback): Result;
 
     /**
      * If this is an OK result, call the given callback with the value, and return $this
+     *
+     * The callback's return value is ignored.
      *
      * @param \Closure(TValue, mixed...):mixed $callback
      * @return $this
@@ -81,26 +83,28 @@ abstract class Result
      * If this is an error result, return the given result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param Result<TNextValue, TNextError> $result
-     * @return Result<TNextValue, TNextError>|Ok<TValue>
+     * @return Result<TValue|TNextValue, TNextError>
      */
     abstract function or(Result $result): Result;
 
     /**
-     * If this is an error result, call the given callback with the error object and return the next result, otherwise return $this
+     * If this is an error result, call the given callback with the error and return the next result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
+     * @template TNextError
      *
      * @param \Closure(TError, mixed...):Result<TNextValue, TNextError> $callback
-     * @return Result<TNextValue, TNextError>|Ok<TValue>
+     * @return Result<TValue|TNextValue, TNextError>
      */
     abstract function orElse(\Closure $callback): Result;
 
     /**
-     * If this is an error result, call the given callback with the error object, and return $this
+     * If this is an error result, call the given callback with the error, and return $this
+     *
+     * The callback's return value is ignored.
      *
      * @param \Closure(TError, mixed...):mixed $callback
      * @return $this
@@ -108,22 +112,37 @@ abstract class Result
     abstract function orDo(\Closure $callback): Result;
 
     /**
-     * If this is an error result and the given error type matches, call the handler with the error object and return the result, otherwise return $this
+     * If this is an error result and the error is an instance of $errorClass, call the handler and return the next result, otherwise return $this
      *
      * @template TNextValue
-     * @template TNextError of object
-     * @template THandledError of object
+     * @template TNextError
+     * @template TCaughtError of TError
      *
-     * @param class-string<THandledError>|THandledError $errorType
-     * @param \Closure(THandledError, mixed...):Result<TNextValue, TNextError> $handler
-     * @return Result<TNextValue, TNextError>|$this
+     * @param class-string<TCaughtError> $errorClass
+     * @param \Closure(TCaughtError, mixed...):Result<TNextValue, TNextError> $handler
+     * @return Result<TValue|TNextValue, TError|TNextError>
      */
-    abstract function handle(string|object $errorType, \Closure $handler): Result;
+    abstract function catch(string $errorClass, \Closure $handler): Result;
+
+    /**
+     * If this an error result and the error is identical to $errorValue, call the handler and return the next result, otherwise return $this
+     *
+     * @template TNextValue
+     * @template TNextError
+     * @template THandledError of TError
+     *
+     * @param THandledError $errorValue
+     * @param \Closure(THandledError, mixed...):Result<TNextValue, TNextError> $handler
+     * @return Result<TValue|TNextValue, TError|TNextError>
+     */
+    abstract function handle(mixed $errorValue, \Closure $handler): Result;
 
     /**
      * Call the callback with the current result and return $this
      *
-     * @param \Closure($this, mixed...):mixed $callback
+     * The callback's return value is ignored.
+     *
+     * @param \Closure(Result<TValue, TError>, mixed...):mixed $callback
      * @return $this
      */
     function do(\Closure $callback): Result

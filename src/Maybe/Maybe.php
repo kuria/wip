@@ -24,6 +24,8 @@ abstract class Maybe
     /**
      * See if this maybe is some
      *
+     * @psalm-assert-if-true Some<T> $this
+     * @psalm-assert-if-false None $this
      * @phpstan-assert-if-true Some<T> $this
      * @phpstan-assert-if-false None $this
      */
@@ -32,6 +34,8 @@ abstract class Maybe
     /**
      * See if this maybe is none
      *
+     * @psalm-assert-if-true None $this
+     * @psalm-assert-if-false Some<T> $this
      * @phpstan-assert-if-true None $this
      * @phpstan-assert-if-false Some<T> $this
      */

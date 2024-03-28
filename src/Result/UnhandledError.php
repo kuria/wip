@@ -5,7 +5,7 @@ namespace Kuria\Result;
 class UnhandledError extends \LogicException
 {
     /**
-     * @param Error<object> $error
+     * @param Error<mixed> $error
      */
     function __construct(
         string $message,
@@ -15,7 +15,7 @@ class UnhandledError extends \LogicException
     }
 
     /**
-     * @return Error<object>
+     * @return Error<mixed>
      */
     function getError(): Error
     {
