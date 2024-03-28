@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<psalm
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    errorLevel="1"
+    findUnusedBaselineEntry="true"
+    findUnusedCode="false"
+    findUnusedIssueHandlerSuppression="true"
+>
+    <projectFiles>
+        <directory name="src/Collections" />
+        <directory name="src/Iterable" />
+        <directory name="src/Maybe" />
+        <directory name="src/Psalm" />
+        <directory name="src/Result" />
+        <directory name="tests" />
+        <ignoreFiles>
+            <directory name="vendor" />
+        </ignoreFiles>
+    </projectFiles>
+
+    <issueHandlers>
+        <!-- for manual testing -->
+        <ForbiddenCode errorLevel="suppress" />
+        <MissingFile errorLevel="suppress" />
+
+        <!-- collection classes only use new static() with the same type (@psalm-consistent-templates is too restrictive) -->
+        <UnsafeGenericInstantiation>
+            <errorLevel type="suppress">
+                <directory name="src/Collections" />
+            </errorLevel>
+        </UnsafeGenericInstantiation>
+
+        <!-- $arr2 argument of array user intersect/diff functions is optional (false-positive) -->
+        <PossiblyInvalidArgument>
+            <errorLevel type="suppress">
+                <directory name="src/Collections" />
+                <referencedFunction name="array_uintersect" />
+                <referencedFunction name="array_udiff" />
+            </errorLevel>
+        </PossiblyInvalidArgument>
+
+        <MixedArgumentTypeCoercion>
+            <errorLevel type="suppress">
+                <directory name="src/Collections" />
+                <referencedFunction name="array_intersect_ukey" />
+                <referencedFunction name="array_diff_ukey" />
+            </errorLevel>
+        </MixedArgumentTypeCoercion>
+
+        <!-- https://github.com/vimeo/psalm/issues/10848 -->
+        <InvalidTemplateParam>
+            <errorLevel type="suppress">
+                <directory name="src/Maybe" />
+                <directory name="src/Result" />
+                <directory name="src/Collections" /> <!-- also due to https://github.com/vimeo/psalm/discussions/10864 -->
+            </errorLevel>
+        </InvalidTemplateParam>
+    </issueHandlers>
+
+    <stubs>
+        <file name="psalm-dev-stubs.php" /> <!-- for manual testing -->
+        <file name="src/Psalm/stubs.php" /> <!-- required, maybe because the plugin is in the same project (?) -->
+    </stubs>
+
+    <plugins>
+        <pluginClass class="Kuria\Psalm\Plugin" />
+    </plugins>
+</psalm>

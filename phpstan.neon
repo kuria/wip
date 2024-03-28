@@ -1,55 +1,65 @@
-parameters:
-    level: max
-    paths:
-        - src/Collections/
-        - src/Iterable/
-        - src/Maybe/
-        - src/Result/
-    ignoreErrors:
-        ###############
-        # Collections #
-        ###############
-
-        # https://github.com/phpstan/phpstan/issues/10735
-        - identifier: varTag.nativeType
-          paths:
-              - '*/src/Collections/Collection.php'
-              - '*/src/Collections/Map.php'
-
-        - message: '{Map<TGroupKey of \(int\|string\)}'
-          path: '*/src/Collections/Map.php'
-
-        # array user intersection and diff functions work with a single argument too
-        - message: '{Parameter #2 \$arr2 of function array_\w*(intersect|diff)}'
-          identifier: argument.type
-          paths:
-              - '*/src/Collections/Collection.php'
-              - '*/src/Collections/Map.php'
-
-        # list type limitations
-        - message: '{::\$values \(list<T>\) does not accept (non-empty-)?array}'
-          identifier: assign.propertyType
-          path: '*/src/Collections/Collection.php'
-
-        # size cannot be be non-positive in Collection::split()
-        - message: '{::chunk\(\) expects int<1, max>}'
-          identifier: argument.type
-          path: '*/src/Collections/Collection.php'
-
-        # documented behavior of Map::flip()
-        - message: '{Cannot cast TValue to string}'
-          identifier: cast.string
-          path: '*/src/Collections/Map.php'
-
-        # maps do not support appending and keys cannot be NULL
-        - message: '{Map::offsetSet\(\) should be contravariant with parameter \$offset}'
-          identifier: method.childParameterType
-          path: '*/src/Collections/Map.php'
-
-        # mimicking array_column() behavior
-        - message: '{Variable property access on object}'
-          path: '*/src/Collections/Map.php'
-
 includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - phar://phpstan.phar/conf/bleedingEdge.neon
+
+parameters:
+    level: max
+    paths:
+        - src/Collections
+        - src/Iterable
+        - src/Maybe
+        - src/Result
+    ignoreErrors:
+        # static<T> is unsupported - https://github.com/phpstan/phpstan-src/pull/1289
+        - message: '{should return [^\\]++\\Collections\\\w*(Map|List)}'
+          identifier: return.type
+          path: src/Collections/
+
+        - message: '{^PHPDoc tag @return with type [^>]++> is (not subtype of|incompatible with) native type static\(}'
+          identifier: return.phpDocType
+          path: src/Collections/
+
+        - message: '{^Type mixed in generic type [^>]++> in PHPDoc tag @return is not subtype of template type}'
+          identifier: generics.notSubtype
+          path: src/Collections/
+
+        # collection/map cast methods - no @psalm-if-this-is equivalent exists
+        - message: '{^Parameter #1 \$(values|pairs) of class [^\\]++\\Collections\\\w*(Map|List) constructor}'
+          identifier: argument.type
+          path: src/Collections/
+
+        # assignment to $values (false-positive)
+        - message: '{::\$values}'
+          identifier: assign.propertyType
+          path: src/Collections/Collection.php
+
+        # chunk size math (false-positive)
+        - message: '{\$size of method Kuria\\Collections\\Collection<T>::chunk\b}'
+          identifier: argument.type
+
+        # can pass a single array to array_ functions (false-positive)
+        - message: '{\$arr2 of function array_}'
+          identifier: argument.type
+          path: src/Collections/
+
+        # https://github.com/phpstan/phpstan/issues/10735
+        - message: '{Map<TGroupKey of \(int\|string\)}'
+          path: src/Collections/
+
+        # mimicking array_column() behavior
+        - message: '{^Variable property access on TValue of object}'
+          path: src/Collections/ObjectMap.php
+
+        # failed type inferrence in insertAfter()/insertBefore() closures (false-positive)
+        - message: '{TMappedKey}'
+          identifier: argument.templateType
+          path: src/Collections/Map.php
+
+        # instanceof check on $this->error (false-positive)
+        - message: '{^Cannot access property \$error on TCaughtError of mixed}'
+          identifier: property.nonObject
+          path: src/Result/Error.php
+
+        - message: '{^PHPDoc tag @var with type TCaughtError of TError is not subtype of native type}'
+          identifier: varTag.nativeType
+          path: src/Result/Error.php
