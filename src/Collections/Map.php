@@ -10,34 +10,29 @@ use Kuria\Maybe\{Maybe, Some, None};
  *
  * @template TKey of array-key
  * @template TValue
- * @implements \ArrayAccess<TKey, TValue>
- * @implements \IteratorAggregate<TKey, TValue>
+ * @implements ReadableMap<TKey, TValue>
  *
- * @phpstan-consistent-constructor
  * @psalm-consistent-constructor
- * @psalm-consistent-templates
+ * @phpstan-consistent-constructor
  */
-class Map implements \Countable, \ArrayAccess, \IteratorAggregate
+class Map implements ReadableMap
 {
     /**
-     * Create a map for the given array
-     *
      * @param array<TKey, TValue> $pairs
      */
     function __construct(protected array $pairs = [])
-    {
-    }
+    {}
 
     /**
      * Create a map from an iterable
      *
-     * @template TInputKey of array-key
-     * @template TInputValue
+     * @template TInputKey of TKey
+     * @template TInputValue of TValue
      *
      * @param iterable<TInputKey, TInputValue> $pairs
      * @return static<TInputKey, TInputValue>
      */
-    static function create(iterable $pairs = []): self
+    static function fromIterable(iterable $pairs = []): static
     {
         return new static(IterableConverter::toArray($pairs));
     }
@@ -47,62 +42,67 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
      *
      * Both lists must have the same number of elements. Keys must be scalar.
      * 
-     * @template TInputKey of array-key
-     * @template TInputValue
+     * @template TInputKey of TKey
+     * @template TInputValue of TValue
      * 
      * @param iterable<TInputKey> $keys
      * @param iterable<TInputValue> $values
      * @return static<TInputKey, TInputValue>
      */
-    static function combine(iterable $keys, iterable $values): self
+    static function combine(iterable $keys, iterable $values): static
     {
         return new static(\array_combine(IterableConverter::toList($keys), IterableConverter::toList($values)));
     }
 
+    function as(string $type): ReadableMap
+    {
+        return new $type($this->pairs);
+    }
+
     /**
-     * Get the pairs as an array
-     *
-     * @return array<TKey, TValue>
+     * @return ScalarMap<TKey, TValue>
      */
+    function asScalars(): ScalarMap
+    {
+        return new ScalarMap($this->pairs);
+    }
+
+    /**
+     * @return ObjectMap<TKey, TValue>
+     */
+    function asObjects(): ObjectMap
+    {
+        return new ObjectMap($this->pairs);
+    }
+
+    /**
+     * @return ArrayMap<TKey, TValue>
+     */
+    function asArrays(): ArrayMap
+    {
+        return new ArrayMap($this->pairs);
+    }
+
     function toArray(): array
     {
         return $this->pairs;
     }
 
-    /**
-     * See if the map is empty
-     */
     function isEmpty(): bool
     {
         return \count($this->pairs) === 0;
     }
 
-    /**
-     * See if the given key exists
-     *
-     * @param TKey $key
-     */
     function has(int|string $key): bool
     {
         return \array_key_exists($key, $this->pairs);
     }
 
-    /**
-     * See if the given value exists
-     *
-     * @param TValue $value
-     */
-    function contains($value): bool
+    function contains(mixed $value): bool
     {
         return \in_array($value, $this->pairs, true);
     }
 
-    /**
-     * Try to find the first occurrence of a value
-     *
-     * @param TValue $value
-     * @return Maybe<TKey> the found key
-     */
     function find(mixed $value): Maybe
     {
         $key = \array_search($value, $this->pairs, true);
@@ -110,12 +110,6 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return $key !== false ? new Some($key) : new None();
     }
 
-    /**
-     * Try to find the first occurrence of a value accepted by the filter
-     *
-     * @param callable(TValue):bool $filter
-     * @return Maybe<TKey>
-     */
     function findUsing(callable $filter): Maybe
     {
         foreach ($this->pairs as $key => $value) {
@@ -127,12 +121,6 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new None();
     }
 
-    /**
-     * Get value for the given key
-     *
-     * @param TKey $key
-     * @return Maybe<TValue>
-     */
     function get(int|string $key): Maybe
     {
         return \array_key_exists($key, $this->pairs) ? new Some($this->pairs[$key]) : new None();
@@ -183,7 +171,13 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     function insertBefore(int|string $beforeKey, iterable $pairs): void
     {
         if (\array_key_exists($beforeKey, $this->pairs)) {
-            $this->pairs = $this->rebuild(self::createInsertionBuilder($beforeKey, $pairs, false))->pairs;
+            $this->pairs = $this->rebuild(static function ($k, $v) use ($beforeKey, $pairs) {
+                if ($k === $beforeKey) {
+                    yield from $pairs;
+                }
+
+                yield $k => $v;
+            })->pairs;
         } else {
             $this->pairs = IterableConverter::toArray($pairs) + $this->pairs;
         }
@@ -200,7 +194,13 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     function insertAfter(int|string $afterKey, iterable $pairs): void
     {
         if (\array_key_exists($afterKey, $this->pairs)) {
-            $this->pairs = $this->rebuild(self::createInsertionBuilder($afterKey, $pairs, true))->pairs;
+            $this->pairs = $this->rebuild(static function ($k, $v) use ($afterKey, $pairs) {
+                yield $k => $v;
+
+                if ($k === $afterKey) {
+                    yield from $pairs;
+                }
+            })->pairs;
         } else {
             $this->add($pairs);
         }
@@ -240,22 +240,6 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         $this->pairs = [];
     }
 
-    /**
-     * Reduce the map to a single value
-     *
-     * The callback should accept 3 arguments (iteration result and current key and value)
-     * and return a new iteration result. The returned iteration result will be
-     * used in subsequent callback invocations.
-     *
-     * Returns the final iteration result or $initial if the map is empty.
-     *
-     * @template TResult
-     * @template TInitial
-     *
-     * @param callable(TResult|TInitial, TKey, TValue):TResult $reducer
-     * @param TInitial $initial
-     * @return TResult|TInitial
-     */
     function reduce(callable $reducer, mixed $initial = null): mixed
     {
         $result = $initial;
@@ -268,8 +252,14 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Get all values
-     *
+     * @return ScalarList<TKey>
+     */
+    function keys(): ScalarList
+    {
+        return new ScalarList(\array_keys($this->pairs));
+    }
+
+    /**
      * @return Collection<TValue>
      */
     function values(): Collection
@@ -277,91 +267,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new Collection(\array_values($this->pairs));
     }
 
-    /**
-     * Get all keys
-     *
-     * @return Collection<TKey>
-     */
-    function keys(): Collection
-    {
-        return new Collection(\array_keys($this->pairs));
-    }
-
-    /**
-     * Swap keys and values
-     *
-     * The values must be scalar or convertable to a string.
-     *
-     * @return static<array-key, TKey>
-     */
-    function flip(): self
-    {
-        $pairs = [];
-
-        foreach ($this->pairs as $k => $v) {
-            $pairs[(string) $v] = $k;
-        }
-
-        return new static($pairs);
-    }
-
-    /**
-     * Gather values from properties or array keys of all object or array values
-     *
-     * Returns a new map with the gathered values. Preserves original keys if $indexKey is NULL.
-     *
-     * @return static<array-key, mixed>
-     */
-    function column(int|string $key, int|string|null $indexKey = null): self
-    {
-        if ($indexKey !== null) {
-            return new static(\array_column($this->pairs, $key, $indexKey));
-        }
-
-        // cannot use \array_column() here because it does not preserve keys
-        $pairs = [];
-
-        foreach ($this->pairs as $k => $v) {
-            if (\is_array($v)) {
-                if (\array_key_exists($key, $v)) {
-                    $pairs[$k] = $v[$key];
-                }
-            } elseif (\is_object($v)) {
-                if (
-                    isset($v->{$key})
-                    || \property_exists($v, (string) $key) && (new \ReflectionProperty($v, (string) $key))->isPublic()
-                ) {
-                    $pairs[$k] = $v->{$key};
-                }
-            }
-        }
-
-        return new static($pairs);
-    }
-
-    /**
-     * Gather keys from properties or array keys of all object or array values
-     *
-     * Returns a new map with the gathered keys and existing values.
-     *
-     * @return static<array-key, TValue>
-     */
-    function indexBy(int|string $key): self
-    {
-        return new static(\array_column($this->pairs, null, $key));
-    }
-
-    /**
-     * Filter pairs using the given callback
-     *
-     * The callback should accept 2 arguments (key and value) return TRUE to accept a pair and FALSE to reject it.
-     *
-     * Returns a new map with all accepted pairs.
-     *
-     * @param callable(TKey, TValue):bool $filter
-     * @return static<TKey, TValue>
-     */
-    function filter(callable $filter): self
+    function filter(callable $filter): static
     {
         $pairs = [];
 
@@ -375,14 +281,10 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Apply the callback to all pairs
-     *
-     * Returns a new map with the modified values.
-     *
      * @template TNextValue
      *
      * @param callable(TKey, TValue):TNextValue $callback
-     * @return static<TKey, TNextValue>
+     * @return self<TKey, TNextValue>
      */
     function apply(callable $callback): self
     {
@@ -392,16 +294,9 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
             $pairs[$k] = $callback($k, $v);
         }
 
-        return new Map($pairs);
+        return new self($pairs);
     }
 
-    /**
-     * Call the callback with each pair
-     *
-     * The callback's return value is ignored.
-     *
-     * @param callable(TKey, TValue):mixed $callback
-     */
     function walk(callable $callback): void
     {
         foreach ($this->pairs as $k => $v) {
@@ -409,17 +304,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         }
     }
 
-    /**
-     * Merge the map with the given iterables
-     *
-     * If the same key exists in multiple iterables, the last given value will be used.
-     *
-     * Returns a new map with the merged pairs.
-     *
-     * @param iterable<TKey, TValue> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function merge(iterable ...$iterables): self
+    function merge(iterable ...$iterables): static
     {
         if (\count($iterables) === 0) {
             return clone $this;
@@ -428,40 +313,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_replace($this->pairs, ...IterableConverter::toArrays($iterables)));
     }
 
-    /**
-     * Compute an intersection with the given iterables
-     *
-     * Values are converted to a string before the comparison.
-     *
-     * Returns a new map containing all pairs of this map that are also present in all the given iterables.
-     *
-     * @param iterable<array-key, TValue> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function intersect(iterable ...$iterables): self
-    {
-        if (\count($this->pairs) === 0 || \count($iterables) === 0) {
-            return new static();
-        }
-
-        return new static(\array_intersect_assoc($this->pairs, ...IterableConverter::toArrays($iterables)));
-    }
-
-    /**
-     * Compute an intersection with the given iterables using a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first value is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new map containing all pairs of this map that are also present in all the given iterables.
-     *
-     * @template TOtherValue
-     *
-     * @param callable(TValue|TOtherValue, TValue|TOtherValue):int $comparator
-     * @param iterable<array-key, TOtherValue> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function intersectUsing(callable $comparator, iterable ...$iterables): self
+    function intersectUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -473,15 +325,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_uintersect_assoc($this->pairs, ...$args));
     }
 
-    /**
-     * Compute a key intersection with the given iterables
-     *
-     * Returns a new map containing all pairs of this map whose keys are also present in all the given iterables.
-     *
-     * @param iterable<array-key, mixed> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function intersectKeys(iterable ...$iterables): self
+    function intersectKeys(iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -490,21 +334,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_intersect_key($this->pairs, ...IterableConverter::toArrays($iterables)));
     }
 
-    /**
-     * Compute a key intersection with the given iterables using a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first key is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new map containing all pairs of this map whose keys are also present in all the given iterables.
-     *
-     * @template TOtherKey of array-key
-     *
-     * @param callable(TKey|TOtherKey, TKey|TOtherKey):int $comparator
-     * @param iterable<TOtherKey, mixed> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function intersectKeysUsing(callable $comparator, iterable ...$iterables): self
+    function intersectKeysUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -516,40 +346,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_intersect_ukey($this->pairs, ...$args));
     }
 
-    /**
-     * Compute a difference between this map and the given iterables
-     *
-     * Values are converted to a string before the comparison.
-     *
-     * Returns a new map containing all pairs of this map that are not present in any of the given iterables.
-     *
-     * @param iterable<array-key, TValue> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function diff(iterable ...$iterables): self
-    {
-        if (\count($this->pairs) === 0 || \count($iterables) === 0) {
-            return new static();
-        }
-
-        return new static(\array_diff_assoc($this->pairs, ...IterableConverter::toArrays($iterables)));
-    }
-
-    /**
-     * Compute a difference between this map and the given iterables using a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first value is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new map containing all pairs of this map that are not present in any of the given iterables.
-     *
-     * @template TOtherValue
-     *
-     * @param callable(TValue|TOtherValue, TValue|TOtherValue):int $comparator
-     * @param iterable<array-key, TOtherValue> $iterables
-     * @return static<TKey, TValue>
-     */
-    function diffUsing(callable $comparator, iterable ...$iterables): self
+    function diffUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -561,15 +358,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_udiff_assoc($this->pairs, ...$args));
     }
 
-    /**
-     * Compute a key difference between this map and the given iterables
-     *
-     * Returns a new map containing all pairs of this map whose keys are not present in all the given iterables.
-     *
-     * @param iterable<array-key, mixed> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function diffKeys(iterable ...$iterables): self
+    function diffKeys(iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -578,21 +367,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_diff_key($this->pairs, ...IterableConverter::toArrays($iterables)));
     }
 
-    /**
-     * Compute a key difference between this map and the given iterables using a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first key is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new map containing all pairs of this map whose keys are not present in all the given iterables.
-     *
-     * @template TOtherKey of array-key
-     *
-     * @param callable(TKey|TOtherKey, TKey|TOtherKey):int $comparator
-     * @param iterable<TOtherKey, mixed> ...$iterables
-     * @return static<TKey, TValue>
-     */
-    function diffKeysUsing(callable $comparator, iterable ...$iterables): self
+    function diffKeysUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->pairs) === 0 || \count($iterables) === 0) {
             return new static();
@@ -605,50 +380,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_diff_ukey($this->pairs, ...$args));
     }
 
-    /**
-     * Sort the map using its values
-     *
-     * Returns a new sorted map.
-     *
-     * @see \SORT_REGULAR compare items normally (don't change types)
-     * @see \SORT_NUMERIC compare items numerically
-     * @see \SORT_STRING compare items as strings
-     * @see \SORT_LOCALE_STRING compare items as strings based on the current locale
-     * @see \SORT_NATURAL compare items as strings using "natural ordering" like natsort()
-     * @see \SORT_FLAG_CASE can be combined (bitwise OR) with SORT_STRING or SORT_NATURAL to sort strings case-insensitively
-     *
-     * @return static<TKey, TValue>
-     */
-    function sort(int $flags = SORT_REGULAR, bool $reverse = false): self
-    {
-        if (\count($this->pairs) === 0) {
-            return new static();
-        }
-
-        $pairs = $this->pairs;
-
-        if ($reverse) {
-            \arsort($pairs, $flags);
-        } else {
-            \asort($pairs, $flags);
-        }
-
-        return new static($pairs);
-    }
-
-    /**
-     * Sort the map using its values and a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first value is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new sorted map.
-     *
-     *
-     * @param callable(TValue, TValue):int $comparator
-     * @return static<TKey, TValue>
-     */
-    function sortBy(callable $comparator): self
+    function sortBy(callable $comparator): static
     {
         if (\count($this->pairs) === 0) {
             return new static();
@@ -660,21 +392,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static($pairs);
     }
 
-    /**
-     * Sort the map using its keys
-     *
-     * Returns a new sorted map.
-     *
-     * @see \SORT_REGULAR compare items normally (don't change types)
-     * @see \SORT_NUMERIC compare items numerically
-     * @see \SORT_STRING compare items as strings
-     * @see \SORT_LOCALE_STRING compare items as strings based on the current locale
-     * @see \SORT_NATURAL compare items as strings using "natural ordering" like natsort()
-     * @see \SORT_FLAG_CASE can be combined (bitwise OR) with SORT_STRING or SORT_NATURAL to sort strings case-insensitively
-     *
-     * @return static<TKey, TValue>
-     */
-    function sortKeys(int $flags = SORT_REGULAR, bool $reverse = false): self
+    function sortKeys(int $flags = SORT_REGULAR, bool $reverse = false): static
     {
         if (\count($this->pairs) === 0) {
             return new static();
@@ -691,18 +409,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static($pairs);
     }
 
-    /**
-     * Sort the map using its keys and a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first value is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new sorted map.
-     *
-     * @param callable(TKey, TKey):int $comparator
-     * @return static<TKey, TValue>
-     */
-    function sortKeysBy(callable $comparator): self
+    function sortKeysBy(callable $comparator): static
     {
         if (\count($this->pairs) === 0) {
             return new static();
@@ -715,23 +422,21 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Group pairs using a callback
-     *
-     * The callback should accept 2 arguments (key and value) and return a group key.
-     *
-     * Returns a new map with the grouped pairs.
-     *
      * @template TGroupKey of array-key
      *
      * @param callable(TKey, TValue):TGroupKey $grouper
-     * @return static<TGroupKey, static<TKey, TValue>>
+     * @return ObjectMap<TGroupKey, static<TKey, TValue>>
      */
-    function group(callable $grouper): self
+    function group(callable $grouper): ReadableObjectMap
     {
-        /** @var static<TGroupKey, static<TKey, TValue>> $groups */
-        $groups = new static();
+        /** @var ObjectMap<TGroupKey, static<TKey, TValue>> $groups */
+        $groups = new ObjectMap();
 
         foreach ($this->pairs as $k => $v) {
+            /**
+             * @psalm-suppress InvalidArgument https://github.com/vimeo/psalm/issues/10854
+             * @psalm-suppress PossiblyNullReference https://github.com/vimeo/psalm/issues/10857
+             */
             ($groups[$grouper($k, $v)] ??= new static())->set($k, $v);
         }
 
@@ -739,16 +444,10 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Map pairs to new keys using the given callback
-     *
-     * The callback should accept 2 arguments (key and value) and return a new key.
-     *
-     * If the same key is returned multiple times, only the last occurrence will be kept.
-     *
      * @template TMappedKey of array-key
      *
      * @param callable(TKey, TValue):TMappedKey $mapper
-     * @return static<TMappedKey, TValue>
+     * @return self<TMappedKey, TValue>
      */
     function remap(callable $mapper): self
     {
@@ -758,23 +457,15 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
             $pairs[$mapper($k, $v)] = $v;
         }
 
-        return new static($pairs);
+        return new self($pairs);
     }
 
     /**
-     * Rebuild the map using the given callback
+     * @template TMappedKey of array-key
+     * @template TMappedValue
      *
-     * The callback should accept 2 arguments (key and value) and return new key => value pairs.
-     *
-     * If the same key is returned multiple times, only the last pair will be used.
-     *
-     * Returns a new map with the returned pairs.
-     *
-     * @template TNextKey of array-key
-     * @template TNextValue
-     *
-     * @param callable(TKey, TValue):iterable<TNextKey, TNextValue> $builder
-     * @return static<TNextKey, TNextValue>
+     * @param callable(TKey, TValue):iterable<TMappedKey, TMappedValue> $builder
+     * @return self<TMappedKey, TMappedValue>
      */
     function rebuild(callable $builder): self
     {
@@ -786,7 +477,7 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
             }
         }
 
-        return new static($pairs);
+        return new self($pairs);
     }
 
     function count(): int
@@ -796,7 +487,6 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
 
     /**
      * @param TKey $offset
-     * @return bool
      */
     function offsetExists(mixed $offset): bool
     {
@@ -837,29 +527,5 @@ class Map implements \Countable, \ArrayAccess, \IteratorAggregate
     function getIterator(): \Traversable
     {
         return new \ArrayIterator($this->pairs);
-    }
-
-    /**
-     * @param TKey $targetKey
-     * @param iterable<TKey, TValue> $pairs
-     * @return \Closure(TKey, TValue):iterable<TKey, TValue>
-     */
-    private static function createInsertionBuilder(int|string $targetKey, iterable $pairs, bool $after): \Closure
-    {
-        return $after
-            ? static function ($k, $v) use ($targetKey, $pairs) {
-                yield $k => $v;
-
-                if ($k === $targetKey) {
-                    yield from $pairs;
-                }
-            }
-            : static function ($k, $v) use ($targetKey, $pairs) {
-                if ($k === $targetKey) {
-                    yield from $pairs;
-                }
-
-                yield $k => $v;
-            };
     }
 }

@@ -9,33 +9,29 @@ use Kuria\Maybe\{Maybe, Some, None};
  * Sequential list of values
  *
  * @template T
+ * @implements ReadableList<T>
  * @implements \ArrayAccess<int, T>
- * @implements \IteratorAggregate<non-negative-int, T>
  *
- * @phpstan-consistent-constructor
  * @psalm-consistent-constructor
- * @psalm-consistent-templates
+ * @phpstan-consistent-constructor
  */
-class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
+class Collection implements ReadableList, \ArrayAccess
 {
     /**
-     * Create a collection for the given list of values
-     *
      * @param list<T> $values
      */
     function __construct(protected array $values = [])
-    {
-    }
+    {}
 
     /**
      * Create a collection from an iterable
      *
-     * @template TValue
+     * @template TValue of T
      *
      * @param iterable<TValue> $values
      * @return static<TValue>
      */
-    static function create(iterable $values = []): self
+    static function fromIterable(iterable $values = []): static
     {
         return new static(IterableConverter::toList($values));
     }
@@ -43,71 +39,65 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     /**
      * Create a collection from the passed arguments
      *
-     * @template TValue
+     * @template TValue of T
      *
      * @param TValue ...$values
      * @return static<TValue>
      */
-    static function collect(mixed ...$values): self
+    static function collect(mixed ...$values): static
     {
-        return new static($values);
+        return new static(IterableConverter::toList($values));
     }
 
-    /**
-     * Create a collection by splitting a string
-     *
-     * If $limit is negative, all parts except the last -$limit will be returned.
-     *
-     * @param non-empty-string $delimiter
-     * @return static<string>
-     */
-    static function explode(string $string, string $delimiter, int $limit = PHP_INT_MAX): self
-    {
-        return new static(\explode($delimiter, $string, $limit));
-    }
-
-    /**
-     * Get all values as an array
-     *
-     * @return list<T>
-     */
     function toArray(): array
     {
         return $this->values;
     }
 
+    function as(string $type): ReadableList
+    {
+        return new $type($this->values);
+    }
+
     /**
-     * See if the collection is empty
+     * @return ScalarList<T>
      */
+    function asScalars(): ScalarList
+    {
+        return new ScalarList($this->values);
+    }
+
+    /**
+     * @return ObjectList<T>
+     */
+    function asObjects(): ObjectList
+    {
+        return new ObjectList($this->values);
+    }
+
+    /**
+     * @return ArrayList<T>
+     */
+    function asArrays(): ArrayList
+    {
+        return new ArrayList($this->values);
+    }
+
     function isEmpty(): bool
     {
         return \count($this->values) === 0;
     }
 
-    /**
-     * See if the given index exists
-     */
     function has(int $index): bool
     {
         return \array_key_exists($index, $this->values);
     }
 
-    /**
-     * See if the given value exists
-     *
-     * @param T $value
-     */
     function contains(mixed $value): bool
     {
         return \in_array($value, $this->values, true);
     }
 
-    /**
-     * Try to find the first occurrence of a value
-     *
-     * @param T $value
-     * @return Maybe<non-negative-int> the found index
-     */
     function find(mixed $value): Maybe
     {
         $index = \array_search($value, $this->values, true);
@@ -115,12 +105,6 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return $index !== false ? new Some($index) : new None();
     }
 
-    /**
-     * Try to find the first occurrence of a value accepted by the filter
-     *
-     * @param callable(T):bool $filter
-     * @return Maybe<non-negative-int>
-     */
     function findUsing(callable $filter): Maybe
     {
         foreach ($this->values as $i => $v) {
@@ -132,32 +116,16 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return new None();
     }
 
-    /**
-     * Get value at the given index
-     *
-     * @param int $index
-     * @return Maybe<T>
-     */
     function get(int $index): Maybe
     {
         return \array_key_exists($index, $this->values) ? new Some($this->values[$index]) : new None();
     }
 
-    /**
-     * Get the first value
-     *
-     * @return Maybe<T>
-     */
     function first(): Maybe
     {
         return \count($this->values) > 0 ? new Some($this->values[0]) : new None();
     }
 
-    /**
-     * Get the last value
-     *
-     * @return Maybe<T>
-     */
     function last(): Maybe
     {
         $count = \count($this->values);
@@ -234,6 +202,10 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function push(mixed ...$values): void
     {
+        if (!\array_is_list($values)) {
+            $values = \array_values($values);
+        }
+
         \array_push($this->values, ...$values);
     }
 
@@ -266,6 +238,10 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
      */
     function unshift(mixed ...$values): void
     {
+        if (!\array_is_list($values)) {
+            $values = \array_values($values);
+        }
+
         \array_unshift($this->values, ...$values);
     }
 
@@ -293,6 +269,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function insert(int $index, mixed ...$values): void
     {
         if (\count($values) > 0) {
+            /** @psalm-suppress PropertyTypeCoercion false-positive */
             \array_splice($this->values, $index, 0, $values);
         }
     }
@@ -312,7 +289,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
             $this->values,
             $index,
             $length ?? count($this->values),
-            $replacement !== null ? IterableConverter::toList($replacement) : null,
+            $replacement !== null ? IterableConverter::toList($replacement) : [],
         );
     }
 
@@ -328,97 +305,26 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         $this->values = \array_pad($this->values, $length, $value);
     }
 
-    /**
-     * Calculate the sum of all values (value1 + ... + valueN)
-     *
-     * All values must be numeric.
-     *
-     * Returns 0 if the collection is empty.
-     */
-    function sum(): int|float
-    {
-        return \array_sum($this->values);
-    }
-
-    /**
-     * Calculate the product of all values (value1 * ... * valueN)
-     *
-     * All values must be numeric.
-     *
-     * Returns 1 if the collection is empty.
-     */
-    function product(): int|float
-    {
-        return \array_product($this->values);
-    }
-
-    /**
-     * Join all values using a delimiter
-     *
-     * All values must be convertable to a string.
-     */
-    function implode(string $delimiter = ''): string
-    {
-        return \implode($delimiter, $this->values);
-    }
-
-    /**
-     * Reduce the collection to a single value
-     *
-     * The callback should accept 2 arguments (iteration result and current value)
-     * and return a new iteration result. The returned iteration result will be
-     * used in subsequent callback invocations.
-     *
-     * Returns the final iteration result or $initial if the collection is empty.
-     *
-     * @template TResult
-     * @template TInitial
-     *
-     * @param callable(TResult|TInitial, T):TResult $reducer
-     * @param TInitial $initial
-     * @return TResult|TInitial
-     */
     function reduce(callable $reducer, mixed $initial = null): mixed
     {
         return \array_reduce($this->values, $reducer, $initial);
     }
 
-    /**
-     * Get all indexes
-     *
-     * @return static<non-negative-int>
-     */
-    function indexes(): self
-    {
-        return new static(\array_keys($this->values));
-    }
-
-    /**
-     * Extract a slice of the collection
-     *
-     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
-     *
-     * @return static<T>
-     */
-    function slice(int $index, ?int $length = null): self
+    function slice(int $index, ?int $length = null): static
     {
         return new static(\array_slice($this->values, $index, $length));
     }
 
     /**
-     * Split the collection into chunks of the given size
-     *
-     * The last chunk might be smaller if collection size is not a multiple of $size.
-     *
-     * @param positive-int $size
-     * @return static<static<T>>
+     * @return ObjectList<static<T>>
      */
-    function chunk(int $size): self
+    function chunk(int $size): ObjectList
     {
-        /** @var static<static<T>> $chunks */
-        $chunks = new static();
+        /** @var ObjectList<static<T>> $chunks */
+        $chunks = new ObjectList();
 
         foreach (\array_chunk($this->values, $size) as $chunk) {
+            /** @psalm-suppress InvalidArgument https://github.com/vimeo/psalm/issues/10854 */
             $chunks->push(new static($chunk));
         }
 
@@ -426,57 +332,27 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Split the collection into the given number of chunks
-     *
-     * The last chunk might be smaller if collection size is not a multiple of $size.
-     *
-     * @return static<static<T>>
+     * @return ObjectList<static<T>>
      */
-    function split(int $number): self
+    function split(int $number): ObjectList
     {
         $count = \count($this->values);
 
         if ($count === 0 || $number < 1) {
-            return new static();
+            /** @var ObjectList<static<T>> */
+            return new ObjectList();
         }
 
+        /** @psalm-suppress ArgumentTypeCoercion size is positive */
         return $this->chunk((int) \ceil($count / $number));
     }
 
-    /**
-     * Reverse the collection
-     *
-     * Returns a new collection with values in reverse order.
-     *
-     * @return static<T>
-     */
-    function reverse(): self
+    function reverse(): static
     {
         return new static(\array_reverse($this->values));
     }
 
-    /**
-     * Get unique values
-     *
-     * Values are compared in non-strict mode.
-     *
-     * Returns a new collection with unique values.
-     *
-     * @return static<T>
-     */
-    function unique(): self
-    {
-        return new static(\array_values(\array_unique($this->values, \SORT_REGULAR)));
-    }
-
-    /**
-     * Get values in random order
-     *
-     * Returns a new collection with values in random order.
-     *
-     * @return static<T>
-     */
-    function shuffle(): self
+    function shuffle(): static
     {
         $values = $this->values;
         \shuffle($values);
@@ -484,19 +360,9 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static($values);
     }
 
-    /**
-     * Get N random values from the collection
-     *
-     * - if $count is greater than the size of the collection, all values will be returned
-     * - if $count is less than 1, an empty collection will be returned
-     *
-     * Returns a new collection with the randomly chosen values.
-     *
-     * @return static<T>
-     */
-    function random(int $count): self
+    function random(int $count): static
     {
-        if ($count <= 0) {
+        if ($count <= 0 || \count($this->values) === 0) {
             return new static();
         }
 
@@ -514,63 +380,30 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static($values);
     }
 
-    /**
-     * Gather values from a property or array index of all object or array values
-     *
-     * Returns a new collection with the gathered values.
-     *
-     * @return static<mixed>
-     */
-    function column(int|string $key): self
-    {
-        return new static(\array_column($this->values, $key));
-    }
-
-    /**
-     * Filter values using the given callback
-     *
-     * The callback should return TRUE to accept a value and FALSE to reject it.
-     *
-     * Returns a new collection with all accepted values.
-     *
-     * @param callable(T):bool $filter
-     * @return static<T>
-     */
-    function filter(callable $filter): self
+    function filter(callable $filter): static
     {
         return new static(
             \count($this->values) > 0
-                ? \array_filter($this->values, $filter)
+                ? \array_values(\array_filter($this->values, $filter))
                 : []
         );
     }
 
     /**
-     * Apply the callback to all values
-     *
-     * Returns a new collection with the modified values.
-     *
      * @template TNext
      *
      * @param callable(T):TNext $callback
-     * @return static<TNext>
+     * @return self<TNext>
      */
     function apply(callable $callback): self
     {
-        return new static(
+        return new self(
             \count($this->values) > 0
                 ? \array_map($callback, $this->values)
                 : []
         );
     }
 
-    /**
-     * Call the callback with each value
-     *
-     * The callback's return value is ignored.
-     *
-     * @param callable(T):mixed $callback
-     */
     function walk(callable $callback): void
     {
         foreach ($this->values as $value) {
@@ -579,12 +412,10 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Merge the collection with the given iterables
+     * @template TOther
      *
-     * Returns a new collection with the merged values.
-     *
-     * @param iterable<T> ...$iterables
-     * @return static<T>
+     * @param iterable<TOther> ...$iterables
+     * @return self<T|TOther>
      */
     function merge(iterable ...$iterables): self
     {
@@ -600,43 +431,10 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
             }
         }
 
-        return new static($values);
+        return new self($values);
     }
 
-    /**
-     * Compute an intersection with the given iterables
-     *
-     * Values are converted to strings before the comparison.
-     *
-     * Returns a new collection containing all values of this collection that are also present in all the given iterables.
-     *
-     * @param iterable<T> ...$iterables
-     * @return static<T>
-     */
-    function intersect(iterable ...$iterables): self
-    {
-        if (\count($this->values) === 0 || \count($iterables) === 0) {
-            return new static();
-        }
-
-        return new static(\array_values(\array_intersect($this->values, ...IterableConverter::toLists($iterables))));
-    }
-
-    /**
-     * Compute an intersection with the given iterables using a custom comparator
-     *
-     * The comparator must return an integer less than, equal to, or greater than zero if the first argument
-     * is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new collection containing all values of this collection that are also present in all the given iterables.
-     *
-     * @template TOther
-     *
-     * @param callable(T|TOther, T|TOther):int $comparator
-     * @param iterable<TOther> ...$iterables
-     * @return static<T>
-     */
-    function intersectUsing(callable $comparator, iterable ...$iterables): self
+    function intersectUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->values) === 0 || \count($iterables) === 0) {
             return new static();
@@ -648,40 +446,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_values(\array_uintersect($this->values, ...$args)));
     }
 
-    /**
-     * Compute a difference between this collection and the given iterables
-     *
-     * Values are converted to strings before the comparison.
-     *
-     * Returns a new collection containing all values of this collection that are not present in any of the given iterables.
-     *
-     * @param iterable<T> ...$iterables
-     * @return static<T>
-     */
-    function diff(iterable ...$iterables): self
-    {
-        if (\count($this->values) === 0 || \count($iterables) === 0) {
-            return new static();
-        }
-
-        return new static(\array_values(\array_diff($this->values, ...IterableConverter::toLists($iterables))));
-    }
-
-    /**
-     * Compute a difference between this collection and the given iterables using a custom comparator
-     *
-     * The comparator must return an integer less than, equal to, or greater than zero if the first argument
-     * is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new collection containing all values of this collection that are not present in any of the given iterables.
-     *
-     * @template TOther
-     *
-     * @param callable(T|TOther, T|TOther):int $comparator
-     * @param iterable<TOther> ...$iterables
-     * @return static<T>
-     */
-    function diffUsing(callable $comparator, iterable ...$iterables): self
+    function diffUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->values) === 0 || \count($iterables) === 0) {
             return new static();
@@ -693,49 +458,7 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
         return new static(\array_values(\array_udiff($this->values, ...$args)));
     }
 
-    /**
-     * Sort the collection
-     *
-     * Returns a new sorted collection.
-     *
-     * @see \SORT_REGULAR compare items normally (don't change types)
-     * @see \SORT_NUMERIC compare items numerically
-     * @see \SORT_STRING compare items as strings
-     * @see \SORT_LOCALE_STRING compare items as strings based on the current locale
-     * @see \SORT_NATURAL compare items as strings using "natural ordering" like natsort()
-     * @see \SORT_FLAG_CASE can be combined (bitwise OR) with SORT_STRING or SORT_NATURAL to sort strings case-insensitively
-     *
-     * @return static<T>
-     */
-    function sort(int $flags = \SORT_REGULAR, bool $reverse = false): self
-    {
-        if (\count($this->values) === 0) {
-            return new static();
-        }
-
-        $values = $this->values;
-
-        if ($reverse) {
-            \rsort($values, $flags);
-        } else {
-            \sort($values, $flags);
-        }
-
-        return new static($values);
-    }
-
-    /**
-     * Sort the collection using a custom comparator
-     *
-     * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
-     * if the first value is considered to be respectively less than, equal to, or greater than the second.
-     *
-     * Returns a new sorted collection.
-     *
-     * @param callable(T, T):int $comparator
-     * @return static<T>
-     */
-    function sortBy(callable $comparator): self
+    function sortBy(callable $comparator): static
     {
         if (\count($this->values) === 0) {
             return new static();
@@ -748,42 +471,48 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     }
 
     /**
-     * Group values using a callback
-     *
-     * The callback should return a group key for each value.
-     *
      * @template TGroupKey of array-key
      *
-     * @param callable(T):TGroupKey $grouper
-     * @return Map<TGroupKey, static<T>>
+     * @param callable(non-negative-int, T):TGroupKey $grouper
+     * @return ObjectMap<TGroupKey, static<T>>
      */
-    function group(callable $grouper): Map
+    function group(callable $grouper): ObjectMap
     {
         /** @var Map<TGroupKey, static<T>> $groups */
         $groups = new Map();
 
-        foreach ($this->values as $v) {
-            ($groups[$grouper($v)] ??= new static())->push($v);
+        foreach ($this->values as $i => $v) {
+            /** @psalm-suppress PossiblyNullArgument,PossiblyNullReference https://github.com/vimeo/psalm/issues/10857 */
+            ($groups[$grouper($i, $v)] ??= new static())->push($v);
         }
 
         return $groups;
     }
 
     /**
-     * Build a map using properties or array indexes of all object or array values
+     * @template TMappedKey of array-key
      *
-     * If $valueKey is NULL, the complete arrays or objects are mapped to each index.
-     *
-     * @return ($valueKey is null ? Map<array-key, T> : Map<array-key, mixed>)
+     * @param callable(non-negative-int, T):TMappedKey $mapper
+     * @return Map<TMappedKey, T>
      */
-    function mapColumn(int|string $indexKey, int|string|null $valueKey = null): Map
+    function map(callable $mapper): Map
     {
-        return new Map(\array_column($this->values, $valueKey, $indexKey));
+        return $this->toMap()->remap($mapper);
     }
 
     /**
-     * Convert the collection into a map directly
+     * @template TMappedKey of array-key
+     * @template TMappedValue
      *
+     * @param callable(non-negative-int, T):iterable<TMappedKey, TMappedValue> $builder
+     * @return Map<TMappedKey, TMappedValue>
+     */
+    function buildMap(callable $builder): Map
+    {
+        return $this->toMap()->rebuild($builder);
+    }
+
+    /**
      * @return Map<non-negative-int, T>
      */
     function toMap(): Map
@@ -795,6 +524,12 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function count(): int
     {
         return \count($this->values);
+    }
+
+    function getIterator(): \Traversable
+    {
+        /** @var \ArrayIterator<non-negative-int, T> */
+        return new \ArrayIterator($this->values);
     }
 
     /**
@@ -833,14 +568,5 @@ class Collection implements \Countable, \ArrayAccess, \IteratorAggregate
     function offsetUnset(mixed $offset): void
     {
         $this->remove($offset);
-    }
-
-    /**
-     * @return \Traversable<non-negative-int, T>
-     */
-    function getIterator(): \Traversable
-    {
-        /** @var \ArrayIterator<non-negative-int, T> */
-        return new \ArrayIterator($this->values);
     }
 }
