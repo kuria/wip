@@ -2,7 +2,9 @@
 
 namespace Kuria\Maybe;
 
-use function Kuria\Psalm\assertType;
+use function Kuria\Tools\testExactPsalmType;
+use function Kuria\Tools\testPHPStanType;
+use function Kuria\Tools\testType;
 
 class MaybeTypesTest
 {
@@ -10,10 +12,10 @@ class MaybeTypesTest
     {
         $maybe = Maybe::fromNullable($value);
 
-        assertType('Kuria\Maybe\Maybe<string>', $maybe);
-        assertType('string', $maybe->expect('a string'));
-        assertType('string', $maybe->unwrap());
-        assertType('string|null', $maybe->toNullable());
+        testType('Kuria\Maybe\Maybe<string>', $maybe);
+        testType('string', $maybe->expect('a string'));
+        testType('string', $maybe->unwrap());
+        testType('string|null', $maybe->toNullable());
     }
 
     /**
@@ -22,10 +24,11 @@ class MaybeTypesTest
     function testIsSome(Maybe $maybe): void
     {
         if ($maybe->isSome()) {
-            assertType('Kuria\Maybe\Some<string>', $maybe);
-        } /*else { // https://github.com/vimeo/psalm/issues/10851
-            assertType(None::class, $maybe);
-        }*/
+            testType('Kuria\Maybe\Some<string>', $maybe);
+        } else {
+            testExactPsalmType('Kuria\Maybe\Maybe<string>|Kuria\Maybe\None', $maybe); // https://github.com/vimeo/psalm/issues/10851
+            testPHPStanType(None::class, $maybe);
+        }
     }
 
     /**
@@ -34,10 +37,11 @@ class MaybeTypesTest
     function testIsNone(Maybe $maybe): void
     {
         if ($maybe->isNone()) {
-            assertType(None::class, $maybe);
-        } /*else { // https://github.com/vimeo/psalm/issues/10851
-            assertType('Kuria\Maybe\Some<string>', $maybe);
-        }*/
+            testType(None::class, $maybe);
+        } else {
+            testExactPsalmType('Kuria\Maybe\Maybe<string>|Kuria\Maybe\Some<string>', $maybe); // https://github.com/vimeo/psalm/issues/10851
+            testPHPStanType('Kuria\Maybe\Some<string>', $maybe);
+        }
     }
 
     /**
@@ -45,7 +49,7 @@ class MaybeTypesTest
      */
     function testWith(Maybe $maybe): void
     {
-        assertType(
+        testType(
             'string',
             $maybe
                 ->with('foo', 3)
@@ -59,7 +63,7 @@ class MaybeTypesTest
      */
     function testConditionals(Maybe $maybe): void
     {
-        assertType(
+        testType(
             'bool',
             $maybe
                 ->and(new Some(true))
@@ -80,7 +84,7 @@ class MaybeTypesTest
         callable $decoder,
         callable $logger,
     ): void {
-        assertType(
+        testType(
             'int',
             $storageA('some_key')
                 ->orDo(fn () => $logger('not found in storage A'))
@@ -99,7 +103,7 @@ class MaybeTypesTest
      */
     function testAutoBoxing(Maybe $maybe): void
     {
-        assertType(
+        testType(
             'non-empty-string',
             $maybe
                 ->or('world')
@@ -107,7 +111,7 @@ class MaybeTypesTest
                 ->unwrap(),
         );
 
-        assertType(
+        testType(
             'bool',
             $maybe
                 ->and(true)

@@ -12,13 +12,17 @@
         <directory name="src/Collections" />
         <directory name="src/Iterable" />
         <directory name="src/Maybe" />
-        <directory name="src/Psalm" />
         <directory name="src/Result" />
         <directory name="tests" />
+        <directory name="tools/Psalm" />
         <ignoreFiles>
             <directory name="vendor" />
         </ignoreFiles>
     </projectFiles>
+
+    <plugins>
+        <pluginClass class="Kuria\Tools\Psalm\Plugin" />
+    </plugins>
 
     <issueHandlers>
         <!-- for manual testing -->
@@ -49,22 +53,13 @@
             </errorLevel>
         </MixedArgumentTypeCoercion>
 
-        <!-- https://github.com/vimeo/psalm/issues/10848 -->
+        <!-- covariant callable argument (false-positive, https://github.com/vimeo/psalm/issues/10848) -->
         <InvalidTemplateParam>
             <errorLevel type="suppress">
                 <directory name="src/Maybe" />
                 <directory name="src/Result" />
-                <directory name="src/Collections" /> <!-- also due to https://github.com/vimeo/psalm/discussions/10864 -->
+                <directory name="src/Collections" /> <!-- @psalm-if-this-is limitations - https://github.com/vimeo/psalm/discussions/10864 -->
             </errorLevel>
         </InvalidTemplateParam>
     </issueHandlers>
-
-    <stubs>
-        <file name="psalm-dev-stubs.php" /> <!-- for manual testing -->
-        <file name="src/Psalm/stubs.php" /> <!-- required, maybe because the plugin is in the same project (?) -->
-    </stubs>
-
-    <plugins>
-        <pluginClass class="Kuria\Psalm\Plugin" />
-    </plugins>
 </psalm>

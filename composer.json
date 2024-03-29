@@ -1,4 +1,5 @@
 {
+    "license": "MIT",
     "require": {
         "php": ">=8.3"
     },
@@ -14,8 +15,12 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "Kuria\\Tools\\": "tools",
             "Kuria\\": "tests"
-        }
+        },
+        "files": [
+            "tools/stubs.php"
+        ]
     },
     "config": {
         "bin-dir": "bin"

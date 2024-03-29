@@ -478,8 +478,8 @@ class Collection implements ReadableList, \ArrayAccess
      */
     function group(callable $grouper): ObjectMap
     {
-        /** @var Map<TGroupKey, static<T>> $groups */
-        $groups = new Map();
+        /** @var ObjectMap<TGroupKey, static<T>> $groups */
+        $groups = new ObjectMap();
 
         foreach ($this->values as $i => $v) {
             /** @psalm-suppress PossiblyNullArgument,PossiblyNullReference https://github.com/vimeo/psalm/issues/10857 */

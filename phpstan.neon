@@ -2,6 +2,9 @@ includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - phar://phpstan.phar/conf/bleedingEdge.neon
 
+rules:
+    - Kuria\Tools\PHPStan\TestTypeRule
+
 parameters:
     level: max
     paths:
@@ -9,6 +12,8 @@ parameters:
         - src/Iterable
         - src/Maybe
         - src/Result
+        - tests
+        - tools/PHPStan
     ignoreErrors:
         # static<T> is unsupported - https://github.com/phpstan/phpstan-src/pull/1289
         - message: '{should return [^\\]++\\Collections\\\w*(Map|List)}'
@@ -28,7 +33,7 @@ parameters:
           identifier: argument.type
           path: src/Collections/
 
-        # assignment to $values (false-positive)
+        # assignment to $values (false-positives)
         - message: '{::\$values}'
           identifier: assign.propertyType
           path: src/Collections/Collection.php
@@ -42,7 +47,7 @@ parameters:
           identifier: argument.type
           path: src/Collections/
 
-        # https://github.com/phpstan/phpstan/issues/10735
+        # inline @var doesn't work with nested generics - https://github.com/phpstan/phpstan/issues/10735
         - message: '{Map<TGroupKey of \(int\|string\)}'
           path: src/Collections/
 
