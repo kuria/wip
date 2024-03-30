@@ -9,15 +9,15 @@ use function Kuria\Tools\testType;
 class CollectionTypesTest
 {
     /**
-     * @param iterable<string> $stringIterable
+     * @param iterable<string> $iterable
      */
-    function testFactories(iterable $stringIterable, int $int): void
+    function testFactories(iterable $iterable, int $int): void
     {
-        testPsalmType('Kuria\Collections\Collection<string>', Collection::fromIterable($stringIterable));
+        testPsalmType('Kuria\Collections\Collection<string>', Collection::fromIterable($iterable));
         testPsalmType('Kuria\Collections\Collection<int>', Collection::collect($int, $int));
 
         // PHPStan doesn't support @return static<TValue>
-        testExactPHPStanType(Collection::class, Collection::fromIterable($stringIterable));
+        testExactPHPStanType(Collection::class, Collection::fromIterable($iterable));
         testExactPHPStanType(Collection::class, Collection::collect($int, $int));
     }
 
@@ -33,10 +33,14 @@ class CollectionTypesTest
         testType('bool', $strings->contains(123)); // should not fail for other types
         testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->find('foo'));
         testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->find(123)); // should not fail for other types
-        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->findUsing(fn (string $s) => $s === 'foo'));
+        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->findUsing(fn (string $v) => $v === 'foo'));
         testType('Kuria\Maybe\Maybe<string>', $strings->get(5));
         testType('Kuria\Maybe\Maybe<string>', $strings->first());
         testType('Kuria\Maybe\Maybe<string>', $strings->last());
+        testType('Kuria\Maybe\Maybe<0>', $strings->firstIndex());
+        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->lastIndex());
+        testType('Kuria\Maybe\Maybe<string>', $strings->random());
+        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->randomIndex());
     }
 
     /**
@@ -77,7 +81,7 @@ class CollectionTypesTest
         testType('Kuria\Collections\ObjectList<Kuria\Collections\Collection<string>&static>', $strings->split(2));
         testType('Kuria\Collections\Collection<string>&static', $strings->reverse());
         testType('Kuria\Collections\Collection<string>&static', $strings->shuffle());
-        testType('Kuria\Collections\Collection<string>&static', $strings->random(3));
+        testType('Kuria\Collections\Collection<string>&static', $strings->pick(3));
         testType('Kuria\Collections\Collection<string>&static', $strings->filter(fn (string $v) => $v !== 'foo'));
         testType('Kuria\Collections\Collection<non-negative-int>', $strings->apply(strlen(...)));
         $strings->walk(fn (string $v) => $action($v));

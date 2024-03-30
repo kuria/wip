@@ -4,6 +4,7 @@ namespace Kuria\Collections;
 
 use Kuria\Iterable\IterableConverter;
 use Kuria\Maybe\{Maybe, Some, None};
+use Random\Randomizer;
 
 /**
  * Key-value map
@@ -11,11 +12,12 @@ use Kuria\Maybe\{Maybe, Some, None};
  * @template TKey of array-key
  * @template TValue
  * @implements ReadableMap<TKey, TValue>
+ * @implements \ArrayAccess<array-key, TValue>
  *
  * @psalm-consistent-constructor
  * @phpstan-consistent-constructor
  */
-class Map implements ReadableMap
+class Map implements ReadableMap, \ArrayAccess
 {
     /**
      * @param array<TKey, TValue> $pairs
@@ -124,6 +126,76 @@ class Map implements ReadableMap
     function get(int|string $key): Maybe
     {
         return \array_key_exists($key, $this->pairs) ? new Some($this->pairs[$key]) : new None();
+    }
+
+    function first(): Maybe
+    {
+        return \count($this->pairs) > 0
+            ? new Some($this->pairs[\array_key_first($this->pairs)])
+            : new None();
+    }
+
+    function last(): Maybe
+    {
+        return \count($this->pairs) > 0
+            ? new Some($this->pairs[\array_key_last($this->pairs)])
+            : new None();
+    }
+
+    function firstKey(): Maybe
+    {
+        return \count($this->pairs) > 0
+            ? new Some(\array_key_first($this->pairs))
+            : new None();
+    }
+
+    function lastKey(): Maybe
+    {
+        return \count($this->pairs) > 0
+            ? new Some(\array_key_last($this->pairs))
+            : new None();
+    }
+
+    function random(?Randomizer $randomizer = null): Maybe
+    {
+        $count = \count($this->pairs);
+
+        if ($count > 0) {
+            $randomizer ??= $this->getDefaultRandomizer();
+
+            return new Some($this->pairs[$randomizer->pickArrayKeys($this->pairs, 1)[0]]);
+        }
+
+        return new None();
+    }
+
+    function randomKey(?Randomizer $randomizer = null): Maybe
+    {
+        $count = \count($this->pairs);
+
+        if ($count > 0) {
+            $randomizer ??= $this->getDefaultRandomizer();
+
+            return new Some($randomizer->pickArrayKeys($this->pairs, 1)[0]);
+        }
+
+        return new None();
+    }
+
+    /**
+     * @return ScalarList<TKey>
+     */
+    function keys(): ScalarList
+    {
+        return new ScalarList(\array_keys($this->pairs));
+    }
+
+    /**
+     * @return Collection<TValue>
+     */
+    function values(): Collection
+    {
+        return new Collection(\array_values($this->pairs));
     }
 
     /**
@@ -251,20 +323,83 @@ class Map implements ReadableMap
         return $result;
     }
 
-    /**
-     * @return ScalarList<TKey>
-     */
-    function keys(): ScalarList
+    function slice(int $offset, ?int $length = null): static
     {
-        return new ScalarList(\array_keys($this->pairs));
+        return new static(\array_slice($this->pairs, $offset, $length, true));
     }
 
     /**
-     * @return Collection<TValue>
+     * @return ReadableObjectList<static<TKey, TValue>>
      */
-    function values(): Collection
+    function chunk(int $size): ReadableObjectList
     {
-        return new Collection(\array_values($this->pairs));
+        /** @var ObjectList<static<TKey, TValue>> $chunks */
+        $chunks = new ObjectList();
+
+        if ($size < 1) {
+            return $chunks;
+        }
+
+        foreach (\array_chunk($this->pairs, $size, true) as $chunk) {
+            /** @psalm-suppress InvalidArgument (https://github.com/vimeo/psalm/issues/10854) */
+            $chunks->push(new static($chunk));
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * @return ReadableObjectList<static<TKey, TValue>>
+     */
+    function split(int $number): ReadableObjectList
+    {
+        $count = \count($this->pairs);
+
+        if ($count === 0 || $number < 1) {
+            /** @var ObjectList<static<TKey, TValue>> */
+            return new ObjectList();
+        }
+
+        /** @psalm-suppress ArgumentTypeCoercion (size is positive) */
+        return $this->chunk((int) \ceil($count / $number));
+    }
+
+    function reverse(): static
+    {
+        return new static(\array_reverse($this->pairs, true));
+    }
+
+    function shuffle(?Randomizer $randomizer = null): static
+    {
+        $randomizer ??= $this->getDefaultRandomizer();
+
+        $pairs = [];
+
+        foreach ($randomizer->shuffleArray(\array_keys($this->pairs)) as $k) {
+            $pairs[$k] = $this->pairs[$k];
+        }
+
+        return new static($pairs);
+    }
+
+    function pick(int $num, ?Randomizer $randomizer = null): static
+    {
+        if ($num <= 0) {
+            return new static();
+        }
+
+        if ($num >= \count($this->pairs)) {
+            return clone $this;
+        }
+
+        $randomizer ??= $this->getDefaultRandomizer();
+        $pairs = [];
+
+        foreach ($randomizer->pickArrayKeys($this->pairs, $num) as $k) {
+            $pairs[$k] = $this->pairs[$k];
+        }
+
+        return new static($pairs);
     }
 
     function filter(callable $filter): static
@@ -434,8 +569,8 @@ class Map implements ReadableMap
 
         foreach ($this->pairs as $k => $v) {
             /**
-             * @psalm-suppress InvalidArgument https://github.com/vimeo/psalm/issues/10854
-             * @psalm-suppress PossiblyNullReference https://github.com/vimeo/psalm/issues/10857
+             * @psalm-suppress InvalidArgument (https://github.com/vimeo/psalm/issues/10854)
+             * @psalm-suppress PossiblyNullReference (https://github.com/vimeo/psalm/issues/10857)
              */
             ($groups[$grouper($k, $v)] ??= new static())->set($k, $v);
         }
@@ -486,7 +621,7 @@ class Map implements ReadableMap
     }
 
     /**
-     * @param TKey $offset
+     * @param array-key $offset
      */
     function offsetExists(mixed $offset): bool
     {
@@ -494,7 +629,7 @@ class Map implements ReadableMap
     }
 
     /**
-     * @param TKey $offset
+     * @param array-key $offset
      * @return TValue|null
      */
     function offsetGet(mixed $offset): mixed
@@ -503,10 +638,10 @@ class Map implements ReadableMap
     }
 
     /**
+     * @note maps do not support appending with "[]" - use {@see Collection}
+     *
      * @param TKey $offset
      * @param TValue $value
-     *
-     * @note maps do not support appending with "[]" - use {@see Collection}
      */
     function offsetSet(mixed $offset, mixed $value): void
     {
@@ -521,11 +656,16 @@ class Map implements ReadableMap
         unset($this->pairs[$offset]);
     }
 
-    /**
-     * @return \Traversable<TKey, TValue>
-     */
     function getIterator(): \Traversable
     {
         return new \ArrayIterator($this->pairs);
+    }
+
+    protected function getDefaultRandomizer(): Randomizer
+    {
+        /** @var Randomizer $randomizer */
+        static $randomizer = new Randomizer();
+
+        return $randomizer;
     }
 }

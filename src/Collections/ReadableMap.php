@@ -3,21 +3,15 @@
 namespace Kuria\Collections;
 
 use Kuria\Maybe\Maybe;
+use Random\Randomizer;
 
 /**
  * @template-covariant TKey of array-key
  * @template-covariant TValue
- * @extends \IteratorAggregate<TKey, TValue>
+ * @extends Structure<TKey, TValue>
  */
-interface ReadableMap extends \Countable, \IteratorAggregate
+interface ReadableMap extends Structure
 {
-    /**
-     * Get the pairs as an array
-     *
-     * @return array<TKey, TValue>
-     */
-    function toArray(): array;
-
     /**
      * Cast the map into a different subtype
      *
@@ -56,11 +50,6 @@ interface ReadableMap extends \Countable, \IteratorAggregate
     function asArrays(): ReadableArrayMap;
 
     /**
-     * See if the map is empty
-     */
-    function isEmpty(): bool;
-
-    /**
      * See if the given key exists
      */
     function has(int|string $key): bool;
@@ -93,6 +82,62 @@ interface ReadableMap extends \Countable, \IteratorAggregate
     function get(int|string $key): Maybe;
 
     /**
+     * Get the first value
+     *
+     * @return Maybe<TValue>
+     */
+    function first(): Maybe;
+
+    /**
+     * Get the last value
+     *
+     * @return Maybe<TValue>
+     */
+    function last(): Maybe;
+
+    /**
+     * Get the first key
+     *
+     * @return Maybe<TKey>
+     */
+    function firstKey(): Maybe;
+
+    /**
+     * Get the last key
+     *
+     * @return Maybe<TKey>
+     */
+    function lastKey(): Maybe;
+
+    /**
+     * Get a random value
+     *
+     * @return Maybe<TValue>
+     */
+    function random(?Randomizer $randomizer = null): Maybe;
+
+    /**
+     * Get a random key
+     *
+     * @return Maybe<TKey>
+     */
+    function randomKey(?Randomizer $randomizer = null): Maybe;
+
+    /**
+     * Get all keys
+     *
+     * @return ReadableScalarList<TKey>
+     */
+    function keys(): ReadableScalarList;
+
+    /**
+     * Get all values
+     *
+     * @return ReadableList<TValue>
+     */
+    function values(): ReadableList;
+
+    /**
      * Reduce the map to a single value
      *
      * The callback should accept 3 arguments (iteration result and current key and value)
@@ -111,18 +156,64 @@ interface ReadableMap extends \Countable, \IteratorAggregate
     function reduce(callable $reducer, mixed $initial = null): mixed;
 
     /**
-     * Get all keys
+     * Extract a slice of the map
      *
-     * @return ReadableScalarList<TKey>
+     * Both $offset and $length can be negative, in which case they are relative to the end of the map.
+     *
+     * @return static<TKey, TValue>
      */
-    function keys(): ReadableScalarList;
+    function slice(int $offset, ?int $length = null): static;
 
     /**
-     * Get all values
+     * Split the map into chunks of the given size
      *
-     * @return ReadableList<TValue>
+     * - the last chunk might be smaller if map size is not a multiple of $size
+     * - if $size is less than 1, an empty list will be returned
+     *
+     * @return ReadableObjectList<static<TKey, TValue>>
      */
-    function values(): ReadableList;
+    function chunk(int $size): ReadableObjectList;
+
+    /**
+     * Split the map into the given number of chunks
+     *
+     * - the last chunk might be smaller if map size is not a multiple of $size
+     * - if $number is less than 1, an empty list will be returned
+     *
+     * @return ReadableObjectList<static<TKey, TValue>>
+     */
+    function split(int $number): ReadableObjectList;
+
+    /**
+     * Reverse the map
+     *
+     * Returns a new map with pairs in reverse order.
+     *
+     * @return static<TKey, TValue>
+     */
+    function reverse(): static;
+
+    /**
+     * Shuffle the map
+     *
+     * Returns a new map with pairs in random order.
+     *
+     * @return static<TKey, TValue>
+     */
+    function shuffle(?Randomizer $randomizer = null): static;
+
+    /**
+     * Pick N random pairs from the map
+     *
+     * - the pairs keep their original order
+     * - if $num is greater than the size of the map, all pairs will be returned
+     * - if $num is less than 1, an empty map will be returned
+     *
+     * Returns a new map with the randomly chosen values.
+     *
+     * @return static<TKey, TValue>
+     */
+    function pick(int $num, ?Randomizer $randomizer = null): static;
 
     /**
      * Filter pairs using the given callback

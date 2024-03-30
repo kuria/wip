@@ -3,12 +3,13 @@
 namespace Kuria\Collections;
 
 use Kuria\Maybe\Maybe;
+use Random\Randomizer;
 
 /**
  * @template-covariant T
- * @extends \IteratorAggregate<non-negative-int, T>
+ * @extends Structure<non-negative-int, T>
  */
-interface ReadableList extends \Countable, \IteratorAggregate
+interface ReadableList extends Structure
 {
     /**
      * Get all values as an array
@@ -53,11 +54,6 @@ interface ReadableList extends \Countable, \IteratorAggregate
      * @return ReadableArrayList<T>
      */
     function asArrays(): ReadableArrayList;
-
-    /**
-     * See if the collection is empty
-     */
-    function isEmpty(): bool;
 
     /**
      * See if the given index exists
@@ -107,6 +103,34 @@ interface ReadableList extends \Countable, \IteratorAggregate
     function last(): Maybe;
 
     /**
+     * Get the first index
+     *
+     * @return Maybe<0>
+     */
+    function firstIndex(): Maybe;
+
+    /**
+     * Get the last index
+     *
+     * @return Maybe<non-negative-int>
+     */
+    function lastIndex(): Maybe;
+
+    /**
+     * Get a random value
+     *
+     * @return Maybe<T>
+     */
+    function random(?Randomizer $randomizer = null): Maybe;
+
+    /**
+     * Get a random index
+     *
+     * @return Maybe<non-negative-int>
+     */
+    function randomIndex(?Randomizer $randomizer = null): Maybe;
+
+    /**
      * Reduce the collection to a single value
      *
      * The callback should accept 2 arguments (iteration result and current value)
@@ -136,9 +160,9 @@ interface ReadableList extends \Countable, \IteratorAggregate
     /**
      * Split the collection into chunks of the given size
      *
-     * The last chunk might be smaller if collection size is not a multiple of $size.
+     * - the last chunk might be smaller if collection size is not a multiple of $size
+     * - if $size is less than 1, an empty list will be returned
      *
-     * @param positive-int $size
      * @return ReadableObjectList<static<T>>
      */
     function chunk(int $size): ReadableObjectList;
@@ -146,7 +170,8 @@ interface ReadableList extends \Countable, \IteratorAggregate
     /**
      * Split the collection into the given number of chunks
      *
-     * The last chunk might be smaller if collection size is not a multiple of $size.
+     * - the last chunk might be smaller if collection size is not a multiple of $size
+     * - if $number is less than 1, an empty list will be returned
      *
      * @return ReadableObjectList<static<T>>
      */
@@ -162,25 +187,26 @@ interface ReadableList extends \Countable, \IteratorAggregate
     function reverse(): static;
 
     /**
-     * Get values in random order
+     * Shuffle the collection
      *
      * Returns a new collection with values in random order.
      *
      * @return static<T>
      */
-    function shuffle(): static;
+    function shuffle(?Randomizer $randomizer = null): static;
 
     /**
-     * Get N random values from the collection
+     * Pick N random values from the collection
      *
-     * - if $count is greater than the size of the collection, all values will be returned
-     * - if $count is less than 1, an empty collection will be returned
+     * - the values keep their original order
+     * - if $num is greater than the size of the collection, all values will be returned
+     * - if $num is less than 1, an empty collection will be returned
      *
      * Returns a new collection with the randomly chosen values.
      *
      * @return static<T>
      */
-    function random(int $count): static;
+    function pick(int $num, ?Randomizer $randomizer = null): static;
 
     /**
      * Filter values using the given callback
@@ -319,13 +345,6 @@ interface ReadableList extends \Countable, \IteratorAggregate
      * @return ReadableMap<non-negative-int, T>
      */
     function toMap(): ReadableMap;
-
-    /**
-     * Get the number of values
-     *
-     * @return non-negative-int
-     */
-    function count(): int;
 
     /**
      * @return \Traversable<non-negative-int, T>

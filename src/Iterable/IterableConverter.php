@@ -2,6 +2,9 @@
 
 namespace Kuria\Iterable;
 
+use Kuria\Collections\ReadableList;
+use Kuria\Collections\Structure;
+
 abstract class IterableConverter
 {
     /**
@@ -18,7 +21,15 @@ abstract class IterableConverter
      */
     static function toArray(iterable $iterable): array
     {
-        return $iterable instanceof \Traversable ? \iterator_to_array($iterable) : $iterable;
+        if (\is_array($iterable)) {
+            return $iterable;
+        }
+
+        if ($iterable instanceof Structure) {
+            return $iterable->toArray();
+        }
+
+        return \iterator_to_array($iterable);
     }
 
     /**
@@ -37,7 +48,7 @@ abstract class IterableConverter
         $arrays = [];
 
         foreach ($iterables as $iterable) {
-            $arrays[] = $iterable instanceof \Traversable ? \iterator_to_array($iterable) : $iterable;
+            $arrays[] = self::toArray($iterable);
         }
 
         return $arrays;
@@ -56,15 +67,23 @@ abstract class IterableConverter
      */
     static function toList(iterable $iterable): array
     {
-        if ($iterable instanceof \Traversable) {
-            return \iterator_to_array($iterable, false);
+        if (\is_array($iterable)) {
+            if (\array_is_list($iterable)) {
+                return $iterable; // no need to re-index
+            }
+
+            return \array_values($iterable);
         }
 
-        if (\array_is_list($iterable)) {
-            return $iterable;
+        if ($iterable instanceof Structure) {
+            if ($iterable instanceof ReadableList) {
+                return $iterable->toArray(); // no need to re-index
+            }
+
+            return \array_values($iterable->toArray());
         }
 
-        return \array_values($iterable);
+        return \iterator_to_array($iterable, false);
     }
 
     /**

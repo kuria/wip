@@ -4,6 +4,7 @@ namespace Kuria\Collections;
 
 use Kuria\Iterable\IterableConverter;
 use Kuria\Maybe\{Maybe, Some, None};
+use Random\Randomizer;
 
 /**
  * Sequential list of values
@@ -131,6 +132,45 @@ class Collection implements ReadableList, \ArrayAccess
         $count = \count($this->values);
 
         return $count > 0 ? new Some($this->values[$count - 1]) : new None();
+    }
+
+    function firstIndex(): Maybe
+    {
+        return \count($this->values) > 0 ? new Some(0) : new None();
+    }
+
+    function lastIndex(): Maybe
+    {
+        $count = \count($this->values);
+
+        return $count > 0 ? new Some($count - 1) : new None();
+    }
+
+    function random(?Randomizer $randomizer = null): Maybe
+    {
+        $count = \count($this->values);
+
+        if ($count > 0) {
+            $randomizer ??= $this->getDefaultRandomizer();
+
+            return new Some($this->values[$randomizer->getInt(0, $count - 1)]);
+        }
+
+        return new None();
+    }
+
+    function randomIndex(?Randomizer $randomizer = null): Maybe
+    {
+        $count = \count($this->values);
+
+        if ($count > 0) {
+            $randomizer ??= $this->getDefaultRandomizer();
+
+            /** @var Some<non-negative-int> */
+            return new Some($randomizer->getInt(0, $count - 1));
+        }
+
+        return new None();
     }
 
     /**
@@ -269,7 +309,7 @@ class Collection implements ReadableList, \ArrayAccess
     function insert(int $index, mixed ...$values): void
     {
         if (\count($values) > 0) {
-            /** @psalm-suppress PropertyTypeCoercion false-positive */
+            /** @psalm-suppress PropertyTypeCoercion */
             \array_splice($this->values, $index, 0, $values);
         }
     }
@@ -323,8 +363,12 @@ class Collection implements ReadableList, \ArrayAccess
         /** @var ObjectList<static<T>> $chunks */
         $chunks = new ObjectList();
 
+        if ($size < 1) {
+            return $chunks;
+        }
+
         foreach (\array_chunk($this->values, $size) as $chunk) {
-            /** @psalm-suppress InvalidArgument https://github.com/vimeo/psalm/issues/10854 */
+            /** @psalm-suppress InvalidArgument (https://github.com/vimeo/psalm/issues/10854) */
             $chunks->push(new static($chunk));
         }
 
@@ -343,7 +387,7 @@ class Collection implements ReadableList, \ArrayAccess
             return new ObjectList();
         }
 
-        /** @psalm-suppress ArgumentTypeCoercion size is positive */
+        /** @psalm-suppress ArgumentTypeCoercion (size is positive) */
         return $this->chunk((int) \ceil($count / $number));
     }
 
@@ -352,28 +396,27 @@ class Collection implements ReadableList, \ArrayAccess
         return new static(\array_reverse($this->values));
     }
 
-    function shuffle(): static
+    function shuffle(?Randomizer $randomizer = null): static
     {
-        $values = $this->values;
-        \shuffle($values);
+        $randomizer ??= $this->getDefaultRandomizer();
 
-        return new static($values);
+        return new static($randomizer->shuffleArray($this->values));
     }
 
-    function random(int $count): static
+    function pick(int $num, ?Randomizer $randomizer = null): static
     {
-        if ($count <= 0 || \count($this->values) === 0) {
+        if ($num <= 0) {
             return new static();
         }
 
-        if ($count >= $this->count()) {
-            return $this->shuffle();
+        if ($num >= \count($this->values)) {
+            return clone $this;
         }
 
-        $keys = \array_rand($this->values, $count);
+        $randomizer ??= $this->getDefaultRandomizer();
         $values = [];
 
-        foreach ((array) $keys as $k) {
+        foreach ($randomizer->pickArrayKeys($this->values, $num) as $k) {
             $values[] = $this->values[$k];
         }
 
@@ -482,7 +525,7 @@ class Collection implements ReadableList, \ArrayAccess
         $groups = new ObjectMap();
 
         foreach ($this->values as $i => $v) {
-            /** @psalm-suppress PossiblyNullArgument,PossiblyNullReference https://github.com/vimeo/psalm/issues/10857 */
+            /** @psalm-suppress PossiblyNullArgument,PossiblyNullReference (https://github.com/vimeo/psalm/issues/10857) */
             ($groups[$grouper($i, $v)] ??= new static())->push($v);
         }
 
@@ -568,5 +611,13 @@ class Collection implements ReadableList, \ArrayAccess
     function offsetUnset(mixed $offset): void
     {
         $this->remove($offset);
+    }
+
+    protected function getDefaultRandomizer(): Randomizer
+    {
+        /** @var Randomizer $randomizer */
+        static $randomizer = new Randomizer();
+
+        return $randomizer;
     }
 }
