@@ -9,18 +9,28 @@ namespace Kuria\Collections;
 interface ReadableArrayList extends ReadableList
 {
     /**
-     * Gather values from array keys
+     * Gather values using the given key
      *
-     * @return ReadableList<mixed>
+     * @template TKey of array-key
+     *
+     * @param TKey $key
+     * @return ReadableList<T[TKey]>
      */
     function column(string|int $key): ReadableList;
 
     /**
-     * Build a map using array keys
+     * Build a map using the given key
      *
-     * If $valueKey is NULL, the complete arrays are mapped to each key value.
+     * - $key must point to values that are valid array keys
+     * - if $valueKey is NULL, the complete arrays are mapped to each key value
      *
-     * @return ($valueKey is null ? ReadableArrayMap<array-key, T> : ReadableMap<array-key, mixed>)
+     * @template TKey of array-key
+     * @template TValueKey of array-key
+     *
+     * @param TKey $key
+     * @param TValueKey|null $valueKey
+     *
+     * @return ($valueKey is null ? ReadableArrayMap<T[TKey], T> : ReadableMap<T[TKey], T[TValueKey]>)
      */
     function mapColumn(string|int $key, string|int|null $valueKey = null): ReadableMap;
 }

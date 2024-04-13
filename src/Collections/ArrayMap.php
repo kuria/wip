@@ -30,7 +30,14 @@ class ArrayMap extends Map implements ReadableArrayMap
     }
 
     /**
-     * @return ($indexBy is null ? Map<TKey, mixed> : Map<array-key, mixed>)
+     * @template TColumnKey of array-key
+     * @template TIndexBy of array-key
+     * @psalm-suppress all
+     *
+     * @param TColumnKey $key
+     * @param TIndexBy|null $indexBy
+     *
+     * @return ($indexBy is null ? Map<TKey, TValue[TColumnKey]> : Map<TValue[TIndexBy], TValue[TColumnKey]>)
      */
     function column(string|int $key, string|int|null $indexBy = null): Map
     {
@@ -43,7 +50,6 @@ class ArrayMap extends Map implements ReadableArrayMap
 
         foreach ($this->pairs as $k => $v) {
             if (\array_key_exists($key, $v)) {
-                /** @psalm-suppress MixedAssignment */
                 $pairs[$k] = $v[$key];
             }
         }
@@ -52,7 +58,11 @@ class ArrayMap extends Map implements ReadableArrayMap
     }
 
     /**
-     * @return self<array-key, TValue>
+     * @template TIndexBy of array-key
+     * @psalm-suppress all
+     *
+     * @param TIndexBy $key
+     * @return self<TValue[TIndexBy], TValue>
      */
     function indexBy(string|int $key): self
     {

@@ -255,13 +255,13 @@ interface ReadableMap extends Structure
      *
      * Returns a new map with the merged pairs.
      *
-     * @template TOtherKey as array-key
+     * @template TOtherKey of array-key
      * @template TOtherValue
      *
      * @param iterable<TOtherKey, TOtherValue> ...$iterables
-     * @return static<TKey|TOtherKey, TValue|TOtherValue>
+     * @return self<TKey|TOtherKey, TValue|TOtherValue>
      */
-    function merge(iterable ...$iterables): static;
+    function merge(iterable ...$iterables): self;
 
     /**
      * Compute an intersection with the given iterables using a custom comparator

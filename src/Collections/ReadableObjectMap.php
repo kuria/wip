@@ -34,7 +34,12 @@ interface ReadableObjectMap extends ReadableMap
      *
      * Returns a new map with the gathered values. Preserves original keys if $indexBy is NULL.
      *
-     * @return ($indexBy is null ? ReadableMap<TKey, mixed> : ReadableMap<array-key, mixed>)
+     * @template TProp of string
+     * @template TIndexBy of string
+     *
+     * @param TProp $prop
+     * @param TIndexBy|null $indexBy
+     * @return ($indexBy is null ? ReadableMap<TKey, TValue[TProp]> : ReadableMap<TValue[TIndexBy], TValue[TProp]>)
      */
     function column(string $prop, ?string $indexBy = null): ReadableMap;
 
@@ -43,7 +48,10 @@ interface ReadableObjectMap extends ReadableMap
      *
      * Returns a new map indexed by the given property.
      *
-     * @return self<array-key, TValue>
+     * @template TIndexBy of string
+     *
+     * @param TIndexBy $prop
+     * @return self<TValue[TIndexBy], TValue>
      */
     function indexBy(string $prop): self;
 }

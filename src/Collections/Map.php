@@ -329,9 +329,9 @@ class Map implements ReadableMap, \ArrayAccess
     }
 
     /**
-     * @return ReadableObjectList<static<TKey, TValue>>
+     * @return ObjectList<static<TKey, TValue>>
      */
-    function chunk(int $size): ReadableObjectList
+    function chunk(int $size): ObjectList
     {
         /** @var ObjectList<static<TKey, TValue>> $chunks */
         $chunks = new ObjectList();
@@ -349,9 +349,9 @@ class Map implements ReadableMap, \ArrayAccess
     }
 
     /**
-     * @return ReadableObjectList<static<TKey, TValue>>
+     * @return ObjectList<static<TKey, TValue>>
      */
-    function split(int $number): ReadableObjectList
+    function split(int $number): ObjectList
     {
         $count = \count($this->pairs);
 
@@ -439,7 +439,14 @@ class Map implements ReadableMap, \ArrayAccess
         }
     }
 
-    function merge(iterable ...$iterables): static
+    /**
+     * @template TOtherKey of array-key
+     * @template TOtherValue
+     *
+     * @param iterable<TOtherKey, TOtherValue> ...$iterables
+     * @return self<TKey|TOtherKey, TValue|TOtherValue>
+     */
+    function merge(iterable ...$iterables): self
     {
         if (\count($iterables) === 0) {
             return clone $this;

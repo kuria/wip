@@ -38,18 +38,28 @@ interface ReadableObjectList extends ReadableList
     function diff(iterable ...$iterables): static;
 
     /**
-     * Gather values from object properties
+     * Gather values of the given property
      *
-     * @return ReadableList<mixed>
+     * @template TProp of string
+     *
+     * @param TProp $prop
+     * @return ReadableList<T[TProp]>
      */
     function column(string $prop): ReadableList;
 
     /**
-     * Build a map using object properties
+     * Build a map using the given property
      *
-     * If $valueProp is NULL, the complete objects are mapped to each property value.
+     * - $prop must point to values that are valid array keys
+     * - if $valueProp is NULL, the complete objects are mapped to each property value
      *
-     * @return ($valueProp is null ? ReadableObjectMap<array-key, T> : ReadableMap<array-key, mixed>)
+     * @template TProp of string
+     * @template TValueProp of string
+     *
+     * @param TProp $prop
+     * @param TValueProp|null $valueProp
+     *
+     * @return ($valueProp is null ? ReadableObjectMap<T[TProp], T> : ReadableMap<T[TProp], T[TValueProp]>)
      */
     function mapColumn(string $prop, ?string $valueProp = null): ReadableMap;
 }

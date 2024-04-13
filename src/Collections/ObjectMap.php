@@ -40,7 +40,13 @@ class ObjectMap extends Map implements ReadableObjectMap
     }
 
     /**
-     * @return ($indexBy is null ? Map<TKey, mixed> : Map<array-key, mixed>)
+     * @template TProp of string
+     * @template TIndexBy of string
+     * @psalm-suppress all
+     *
+     * @param TProp $prop
+     * @param TIndexBy|null $indexBy
+     * @return ($indexBy is null ? Map<TKey, TValue[TProp]> : Map<TValue[TIndexBy], TValue[TProp]>)
      */
     function column(string $prop, int|string|null $indexBy = null): Map
     {
@@ -65,7 +71,11 @@ class ObjectMap extends Map implements ReadableObjectMap
     }
 
     /**
-     * @return self<array-key, TValue>
+     * @template TIndexBy of string
+     * @psalm-suppress all
+     *
+     * @param TIndexBy $prop
+     * @return self<TValue[TIndexBy], TValue>
      */
     function indexBy(string $prop): self
     {

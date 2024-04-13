@@ -31,7 +31,11 @@ class ArrayList extends Collection implements ReadableArrayList
     }
 
     /**
-     * @return Collection<mixed>
+     * @template TKey of array-key
+     * @psalm-suppress all
+     *
+     * @param TKey $key
+     * @return Collection<T[TKey]>
      */
     function column(string|int $key): Collection
     {
@@ -39,7 +43,14 @@ class ArrayList extends Collection implements ReadableArrayList
     }
 
     /**
-     * @return ($valueKey is null ? ArrayMap<array-key, T> : Map<array-key, mixed>)
+     * @template TKey of array-key
+     * @template TValueKey of array-key
+     * @psalm-suppress all
+     *
+     * @param TKey $key
+     * @param TValueKey|null $valueKey
+     *
+     * @return ($valueKey is null ? ArrayMap<T[TKey], T> : Map<T[TKey], T[TValueKey]>)
      */
     function mapColumn(string|int $key, string|int|null $valueKey = null): Map
     {

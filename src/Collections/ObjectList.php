@@ -60,7 +60,11 @@ class ObjectList extends Collection implements ReadableObjectList
     }
 
     /**
-     * @return Collection<mixed>
+     * @template TProp of string
+     * @psalm-suppress all
+     *
+     * @param TProp $prop
+     * @return Collection<T[TProp]>
      */
     function column(string $prop): Collection
     {
@@ -68,7 +72,14 @@ class ObjectList extends Collection implements ReadableObjectList
     }
 
     /**
-     * @return ($valueProp is null ? ObjectMap<array-key, T> : Map<array-key, mixed>)
+     * @template TProp of string
+     * @template TValueProp of string
+     * @psalm-suppress all
+     *
+     * @param TProp $prop
+     * @param TValueProp|null $valueProp
+     *
+     * @return ($valueProp is null ? ObjectMap<T[TProp], T> : Map<T[TProp], T[TValueProp]>)
      */
     function mapColumn(string $prop, ?string $valueProp = null): Map
     {
