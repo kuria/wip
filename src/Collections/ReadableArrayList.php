@@ -13,7 +13,7 @@ interface ReadableArrayList extends ReadableList
      *
      * @return ReadableList<mixed>
      */
-    function column(string $key): ReadableList;
+    function column(string|int $key): ReadableList;
 
     /**
      * Build a map using array keys
@@ -22,5 +22,5 @@ interface ReadableArrayList extends ReadableList
      *
      * @return ($valueKey is null ? ReadableArrayMap<array-key, T> : ReadableMap<array-key, mixed>)
      */
-    function mapColumn(string $key, ?string $valueKey = null): ReadableMap;
+    function mapColumn(string|int $key, string|int|null $valueKey = null): ReadableMap;
 }

@@ -16,7 +16,7 @@ interface ReadableArrayMap extends ReadableMap
      *
      * @return ($indexBy is null ? ReadableMap<TKey, mixed> : ReadableMap<array-key, mixed>)
      */
-    function column(string $key, ?string $indexBy = null): ReadableMap;
+    function column(string|int $key, string|int|null $indexBy = null): ReadableMap;
 
     /**
      * Re-index the map using a key of the contained arrays
@@ -25,5 +25,5 @@ interface ReadableArrayMap extends ReadableMap
      *
      * @return self<array-key, TValue>
      */
-    function indexBy(string $key): self;
+    function indexBy(string|int $key): self;
 }

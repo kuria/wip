@@ -53,6 +53,7 @@ class MaybeTypesTest
             'string',
             $maybe
                 ->with('foo', 3)
+                // @phpstan-ignore argument.type (https://github.com/phpstan/phpstan/issues/8214)
                 ->andThen(fn (string $str, string $suffix, int $repeat) => $str . \str_repeat($suffix, $repeat))
                 ->unwrap(),
         );
@@ -75,7 +76,7 @@ class MaybeTypesTest
     /**
      * @param callable(string):Maybe<string> $storageA
      * @param callable(string):Maybe<string> $storageB
-     * @param callable(string):Maybe<object{foo: int, bar: int}> $decoder
+     * @param callable(string):Maybe<array{foo: int, bar: int}> $decoder
      * @param callable(string):void $logger
      */
     function testCallbacks(
@@ -91,8 +92,8 @@ class MaybeTypesTest
                 ->orElse(fn () => $storageB('some_key'))
                 ->orDo(fn () => $logger('not found in storage B'))
                 ->andThen($decoder(...))
-                ->andDo(fn (object $record) => ++$record->foo)
-                ->andThen(fn (object $record) => $record->foo)
+                ->andDo(fn (array $record) => $logger('decoding success: ' . $record['foo']))
+                ->andThen(fn (array $record) => $record['bar'])
                 ->do(fn (Maybe $result) => $logger('final result is ' . $result::class))
                 ->unwrap(),
         );

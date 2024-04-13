@@ -126,6 +126,6 @@ class TestTypeRule implements Rule
      */
     private function normalizeExpectedType(string $type): string
     {
-        return \preg_replace('{&static\b}', '', $type);
+        return (string) \preg_replace('{&static\b}', '', $type);
     }
 }

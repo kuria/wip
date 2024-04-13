@@ -32,7 +32,7 @@ class ArrayMap extends Map implements ReadableArrayMap
     /**
      * @return ($indexBy is null ? Map<TKey, mixed> : Map<array-key, mixed>)
      */
-    function column(string $key, int|string|null $indexBy = null): Map
+    function column(string|int $key, string|int|null $indexBy = null): Map
     {
         if ($indexBy !== null) {
             return new Map(\array_column($this->pairs, $key, $indexBy));
@@ -54,7 +54,7 @@ class ArrayMap extends Map implements ReadableArrayMap
     /**
      * @return self<array-key, TValue>
      */
-    function indexBy(string $key): self
+    function indexBy(string|int $key): self
     {
         return new self(\array_column($this->pairs, null, $key));
     }

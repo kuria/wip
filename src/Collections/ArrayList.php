@@ -33,7 +33,7 @@ class ArrayList extends Collection implements ReadableArrayList
     /**
      * @return Collection<mixed>
      */
-    function column(string $key): Collection
+    function column(string|int $key): Collection
     {
         return new Collection(\array_column($this->values, $key));
     }
@@ -41,7 +41,7 @@ class ArrayList extends Collection implements ReadableArrayList
     /**
      * @return ($valueKey is null ? ArrayMap<array-key, T> : Map<array-key, mixed>)
      */
-    function mapColumn(string $key, ?string $valueKey = null): Map
+    function mapColumn(string|int $key, string|int|null $valueKey = null): Map
     {
         if ($valueKey !== null) {
             return new Map(\array_column($this->values, $valueKey, $key));
