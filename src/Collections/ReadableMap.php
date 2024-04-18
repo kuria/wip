@@ -15,7 +15,7 @@ interface ReadableMap extends Structure
     /**
      * Cast the map into a different subtype
      *
-     * @template TType of self<TKey, TValue>
+     * @template TType of self
      *
      * @param class-string<TType> $type
      * @return TType

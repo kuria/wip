@@ -65,12 +65,10 @@ class CollectionTypesTest
     /**
      * @param Collection<string> $strings
      * @param Collection<string> $otherStrings
-     * @param callable(string):int $action
      */
     function testTransformations(
         Collection $strings,
         Collection $otherStrings,
-        callable $action,
         string $string,
         int $int,
         bool $bool,
@@ -84,7 +82,7 @@ class CollectionTypesTest
         testType('Kuria\Collections\Collection<string>&static', $strings->pick(3));
         testType('Kuria\Collections\Collection<string>&static', $strings->filter(fn (string $v) => $v !== 'foo'));
         testType('Kuria\Collections\Collection<non-negative-int>', $strings->apply(strlen(...)));
-        $strings->walk(fn (string $v) => $action($v));
+        $strings->walk(fn (string $v) => \var_dump($v));
         testType('Kuria\Collections\Collection<string|int|bool>', $strings->merge([$int, $int], [$bool]));
         testType('Kuria\Collections\Collection<string>&static', $strings->intersectUsing(\strcmp(...), $otherStrings));
         testType('Kuria\Collections\Collection<string>&static', $strings->diffUsing(\strcmp(...), $otherStrings));
