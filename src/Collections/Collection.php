@@ -25,7 +25,7 @@ class Collection implements ReadableList, \ArrayAccess
     {}
 
     /**
-     * Create a collection from an iterable
+     * Create a list from an iterable
      *
      * @template TValue of T
      *
@@ -38,7 +38,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Create a collection from the passed arguments
+     * Create a list from the passed arguments
      *
      * @template TValue of T
      *
@@ -50,6 +50,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new static(IterableConverter::toList($values));
     }
 
+    /**
+     * @return list<T>
+     */
     function toArray(): array
     {
         return $this->values;
@@ -106,7 +109,22 @@ class Collection implements ReadableList, \ArrayAccess
         return $index !== false ? new Some($index) : new None();
     }
 
+    /**
+     * @param callable(T):bool $filter
+     * @return Maybe<T>
+     */
     function findUsing(callable $filter): Maybe
+    {
+        foreach ($this->values as $v) {
+            if ($filter($v)) {
+                return new Some($v);
+            }
+        }
+
+        return new None();
+    }
+
+    function findIndexUsing(callable $filter): Maybe
     {
         foreach ($this->values as $i => $v) {
             if ($filter($v)) {
@@ -117,16 +135,47 @@ class Collection implements ReadableList, \ArrayAccess
         return new None();
     }
 
+    function any(callable $filter): bool
+    {
+        foreach ($this->values as $v) {
+            if ($filter($v)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function all(callable $filter): bool
+    {
+        foreach ($this->values as $v) {
+            if (!$filter($v)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return Maybe<T>
+     */
     function get(int $index): Maybe
     {
         return \array_key_exists($index, $this->values) ? new Some($this->values[$index]) : new None();
     }
 
+    /**
+     * @return Maybe<T>
+     */
     function first(): Maybe
     {
         return \count($this->values) > 0 ? new Some($this->values[0]) : new None();
     }
 
+    /**
+     * @return Maybe<T>
+     */
     function last(): Maybe
     {
         $count = \count($this->values);
@@ -146,6 +195,9 @@ class Collection implements ReadableList, \ArrayAccess
         return $count > 0 ? new Some($count - 1) : new None();
     }
 
+    /**
+     * @return Maybe<T>
+     */
     function random(?Randomizer $randomizer = null): Maybe
     {
         $count = \count($this->values);
@@ -176,7 +228,7 @@ class Collection implements ReadableList, \ArrayAccess
     /**
      * Set a value at the given index
      *
-     * The index must point to an existing value or the end of the collection.
+     * The index must point to an existing value or the end of the list.
      *
      * @param T $value
      */
@@ -236,7 +288,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Push one or more values onto the end of the collection
+     * Push one or more values onto the end of the list
      *
      * @param T ...$values
      */
@@ -250,7 +302,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Pop a value off the end of the collection
+     * Pop a value off the end of the list
      *
      * @return Maybe<T>
      */
@@ -260,7 +312,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Shift a value off the beginning of the collection
+     * Shift a value off the beginning of the list
      *
      * @return Maybe<T>
      */
@@ -270,7 +322,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Prepend one or more values to the beginning of the collection
+     * Prepend one or more values to the beginning of the list
      *
      * Multiple values are prepended as a whole, so they stay in the same order.
      *
@@ -286,7 +338,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Push values from the given iterable onto the end of the collection
+     * Push values from the given iterable onto the end of the list
      *
      * @param iterable<T> $values
      */
@@ -302,7 +354,7 @@ class Collection implements ReadableList, \ArrayAccess
      *
      * Any existing values at or after the index will be re-indexed.
      *
-     * If $index is negative, it is treated as an offset from the end of the collection.
+     * If $index is negative, it is treated as an offset from the end of the list.
      *
      * @param T ...$values
      */
@@ -315,11 +367,11 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Remove or replace a part of the collection
+     * Remove or replace a part of the list
      *
-     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
+     * Both $index and $length can be negative, in which case they are relative to the end of the list.
      *
-     * If $length is NULL, all elements until the end of the collection are removed or replaced.
+     * If $length is NULL, all elements until the end of the list are removed or replaced.
      *
      * @param iterable<T>|null $replacement
      */
@@ -334,7 +386,7 @@ class Collection implements ReadableList, \ArrayAccess
     }
 
     /**
-     * Pad the collection with a value to the specified length
+     * Pad the list with a value to the specified length
      *
      * If $length is positive, the new values are appended. Otherwise, they are prepended.
      *
@@ -350,6 +402,9 @@ class Collection implements ReadableList, \ArrayAccess
         return \array_reduce($this->values, $reducer, $initial);
     }
 
+    /**
+     * @return static<T>
+     */
     function slice(int $index, ?int $length = null): static
     {
         return new static(\array_slice($this->values, $index, $length));
@@ -391,11 +446,17 @@ class Collection implements ReadableList, \ArrayAccess
         return $this->chunk((int) \ceil($count / $number));
     }
 
+    /**
+     * @return static<T>
+     */
     function reverse(): static
     {
         return new static(\array_reverse($this->values));
     }
 
+    /**
+     * @return static<T>
+     */
     function shuffle(?Randomizer $randomizer = null): static
     {
         $randomizer ??= $this->getDefaultRandomizer();
@@ -403,6 +464,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new static($randomizer->shuffleArray($this->values));
     }
 
+    /**
+     * @return static<T>
+     */
     function pick(int $num, ?Randomizer $randomizer = null): static
     {
         if ($num <= 0) {
@@ -423,6 +487,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new static($values);
     }
 
+    /**
+     * @return static<T>
+     */
     function filter(callable $filter): static
     {
         return new static(
@@ -449,8 +516,8 @@ class Collection implements ReadableList, \ArrayAccess
 
     function walk(callable $callback): void
     {
-        foreach ($this->values as $value) {
-            $callback($value);
+        foreach ($this->values as $v) {
+            $callback($v);
         }
     }
 
@@ -477,6 +544,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new self($values);
     }
 
+    /**
+     * @return static<T>
+     */
     function intersectUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->values) === 0 || \count($iterables) === 0) {
@@ -489,6 +559,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new static(\array_values(\array_uintersect($this->values, ...$args)));
     }
 
+    /**
+     * @return static<T>
+     */
     function diffUsing(callable $comparator, iterable ...$iterables): static
     {
         if (\count($this->values) === 0 || \count($iterables) === 0) {
@@ -501,6 +574,9 @@ class Collection implements ReadableList, \ArrayAccess
         return new static(\array_values(\array_udiff($this->values, ...$args)));
     }
 
+    /**
+     * @return static<T>
+     */
     function sortBy(callable $comparator): static
     {
         if (\count($this->values) === 0) {
@@ -569,6 +645,9 @@ class Collection implements ReadableList, \ArrayAccess
         return \count($this->values);
     }
 
+    /**
+     * @return \Traversable<non-negative-int, T>
+     */
     function getIterator(): \Traversable
     {
         /** @var \ArrayIterator<non-negative-int, T> */

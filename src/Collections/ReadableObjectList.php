@@ -11,7 +11,7 @@ interface ReadableObjectList extends ReadableList
     /**
      * Get unique values
      *
-     * Returns a new collection with unique values.
+     * Returns a new list with unique values.
      *
      * @return static<T>
      */
@@ -20,7 +20,7 @@ interface ReadableObjectList extends ReadableList
     /**
      * Compute an intersection with the given iterables
      *
-     * Returns a new collection containing all objects of this collection that are also present in all the given iterables.
+     * Returns a new list containing all objects from this list that are also present in all the given iterables.
      *
      * @param iterable<object> ...$iterables
      * @return static<T>
@@ -28,9 +28,9 @@ interface ReadableObjectList extends ReadableList
     function intersect(iterable ...$iterables): static;
 
     /**
-     * Compute a difference between this collection and the given iterables
+     * Compute a difference between this list and the given iterables
      *
-     * Returns a new collection containing all objects of this collection that are not present in any of the given iterables.
+     * Returns a new list containing all objects from this list that are not present in any of the given iterables.
      *
      * @param iterable<object> ...$iterables
      * @return static<T>

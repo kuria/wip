@@ -33,7 +33,10 @@ class CollectionTypesTest
         testType('bool', $strings->contains(123)); // should not fail for other types
         testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->find('foo'));
         testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->find(123)); // should not fail for other types
-        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->findUsing(fn (string $v) => $v === 'foo'));
+        testType('Kuria\Maybe\Maybe<string>', $strings->findUsing(fn (string $v) => $v === 'foo'));
+        testType('Kuria\Maybe\Maybe<non-negative-int>', $strings->findIndexUsing(fn (string $v) => $v === 'foo'));
+        testType('bool', $strings->any(fn (string $v) => $v === 'foo'));
+        testType('bool', $strings->all(fn (string $v) => $v === 'foo'));
         testType('Kuria\Maybe\Maybe<string>', $strings->get(5));
         testType('Kuria\Maybe\Maybe<string>', $strings->first());
         testType('Kuria\Maybe\Maybe<string>', $strings->last());

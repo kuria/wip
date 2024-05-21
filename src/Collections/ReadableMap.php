@@ -67,12 +67,36 @@ interface ReadableMap extends Structure
     function find(mixed $value): Maybe;
 
     /**
-     * Try to find the first occurrence of a value accepted by the filter
+     * Try to find a pair using the filter and return its value
      *
-     * @param callable(TValue):bool $filter
-     * @return Maybe<TKey>
+     * @param callable(TKey, TValue):bool $filter
+     * @return Maybe<TValue> value of the first accepted pair
      */
     function findUsing(callable $filter): Maybe;
+
+    /**
+     * Try to find a pair using the filter and return its key
+     *
+     * @param callable(TKey, TValue):bool $filter
+     * @return Maybe<TKey> key of the first accepted pair
+     */
+    function findKeyUsing(callable $filter): Maybe;
+
+    /**
+     * See if at least one pair is accepted by the filter
+     *
+     * @param callable(TKey, TValue):bool $filter
+     */
+    function any(callable $filter): bool;
+
+    /**
+     * See if all pairs are accepted by the filter
+     *
+     * Returns TRUE if the map is empty.
+     *
+     * @param callable(TKey, TValue):bool $filter
+     */
+    function all(callable $filter): bool;
 
     /**
      * Get value for the given key

@@ -34,7 +34,10 @@ class MapTypesTest
         testType('bool', $map->contains(123)); // should not fail for other types
         testType('Kuria\Maybe\Maybe<string>', $map->find('foo'));
         testType('Kuria\Maybe\Maybe<string>', $map->find(123)); // should not fail for other types
-        testType('Kuria\Maybe\Maybe<string>', $map->findUsing(fn (int $v) => $v === 123));
+        testType('Kuria\Maybe\Maybe<int>', $map->findUsing(fn (string $k, int $v) => $v === 123));
+        testType('Kuria\Maybe\Maybe<string>', $map->findKeyUsing(fn (string $k, int $v) => $v === 123));
+        testType('bool', $map->any(fn (string $k, int $v) => $k === 'foo'));
+        testType('bool', $map->all(fn (string $k, int $v) => $v === 123));
         testType('Kuria\Maybe\Maybe<int>', $map->get(5));
         testType('Kuria\Maybe\Maybe<int>', $map->first());
         testType('Kuria\Maybe\Maybe<int>', $map->last());

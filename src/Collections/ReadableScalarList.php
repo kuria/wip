@@ -18,7 +18,7 @@ interface ReadableScalarList extends ReadableList
      *
      * All values must be numeric.
      *
-     * Returns 0 if the collection is empty.
+     * Returns 0 if the list is empty.
      */
     function sum(): int|float;
 
@@ -27,14 +27,14 @@ interface ReadableScalarList extends ReadableList
      *
      * All values must be numeric.
      *
-     * Returns 1 if the collection is empty.
+     * Returns 1 if the list is empty.
      */
     function product(): int|float;
 
     /**
      * Get unique values
      *
-     * Returns a new collection with unique values.
+     * Returns a new list with unique values.
      *
      * @return static<T>
      */
@@ -45,7 +45,7 @@ interface ReadableScalarList extends ReadableList
      *
      * Values are converted to strings before the comparison.
      *
-     * Returns a new collection containing all values of this collection that are also present in all the given iterables.
+     * Returns a new list containing all values from this list that are also present in all the given iterables.
      *
      * @param iterable<scalar> ...$iterables
      * @return static<T>
@@ -53,11 +53,11 @@ interface ReadableScalarList extends ReadableList
     function intersect(iterable ...$iterables): static;
 
     /**
-     * Compute a difference between this collection and the given iterables
+     * Compute a difference between this list and the given iterables
      *
      * Values are converted to strings before the comparison.
      *
-     * Returns a new collection containing all values of this collection that are not present in any of the given iterables.
+     * Returns a new list containing all values from this list that are not present in any of the given iterables.
      *
      * @param iterable<scalar> ...$iterables
      * @return static<T>
@@ -65,9 +65,9 @@ interface ReadableScalarList extends ReadableList
     function diff(iterable ...$iterables): static;
 
     /**
-     * Sort the collection
+     * Sort the list
      *
-     * Returns a new sorted collection.
+     * Returns a new sorted list.
      *
      * @see \SORT_REGULAR compare items normally (don't change types)
      * @see \SORT_NUMERIC compare items numerically

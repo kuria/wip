@@ -19,7 +19,7 @@ interface ReadableList extends Structure
     function toArray(): array;
 
     /**
-     * Cast the collection into a different subtype
+     * Cast the list into a different subtype
      *
      * @template TType of self
      *
@@ -73,17 +73,40 @@ interface ReadableList extends Structure
     function find(mixed $value): Maybe;
 
     /**
-     * Try to find the first occurrence of a value accepted by the filter
+     * Try to find a value using the filter and return it
      *
      * @param callable(T):bool $filter
-     * @return Maybe<non-negative-int>
+     * @return Maybe<T> the first accepted value
      */
     function findUsing(callable $filter): Maybe;
 
     /**
+     * Try to find a value using the filter and return its index
+     *
+     * @param callable(T):bool $filter
+     * @return Maybe<non-negative-int> index of the first accepted value
+     */
+    function findIndexUsing(callable $filter): Maybe;
+
+    /**
+     * See if at least one value is accepted by the filter
+     *
+     * @param callable(T):bool $filter
+     */
+    function any(callable $filter): bool;
+
+    /**
+     * See if all values are accepted by the filter
+     *
+     * Returns TRUE if the list is empty.
+     *
+     * @param callable(T):bool $filter
+     */
+    function all(callable $filter): bool;
+
+    /**
      * Get value at the given index
      *
-     * @param int $index
      * @return Maybe<T>
      */
     function get(int $index): Maybe;
@@ -131,13 +154,13 @@ interface ReadableList extends Structure
     function randomIndex(?Randomizer $randomizer = null): Maybe;
 
     /**
-     * Reduce the collection to a single value
+     * Reduce the list to a single value
      *
      * The callback should accept 2 arguments (iteration result and current value)
      * and return a new iteration result. The returned iteration result will be
      * used in subsequent callback invocations.
      *
-     * Returns the final iteration result or $initial if the collection is empty.
+     * Returns the final iteration result or $initial if the list is empty.
      *
      * @template TResult
      * @template TInitial
@@ -149,18 +172,18 @@ interface ReadableList extends Structure
     function reduce(callable $reducer, mixed $initial = null): mixed;
 
     /**
-     * Extract a slice of the collection
+     * Extract a slice of the list
      *
-     * Both $index and $length can be negative, in which case they are relative to the end of the collection.
+     * Both $index and $length can be negative, in which case they are relative to the end of the list.
      *
      * @return static<T>
      */
     function slice(int $index, ?int $length = null): static;
 
     /**
-     * Split the collection into chunks of the given size
+     * Split the list into chunks of the given size
      *
-     * - the last chunk might be smaller if collection size is not a multiple of $size
+     * - the last chunk might be smaller if list size is not a multiple of $size
      * - if $size is less than 1, an empty list will be returned
      *
      * @return ReadableObjectList<static<T>>
@@ -168,9 +191,9 @@ interface ReadableList extends Structure
     function chunk(int $size): ReadableObjectList;
 
     /**
-     * Split the collection into the given number of chunks
+     * Split the list into the given number of chunks
      *
-     * - the last chunk might be smaller if collection size is not a multiple of $size
+     * - the last chunk might be smaller if list size is not a multiple of $size
      * - if $number is less than 1, an empty list will be returned
      *
      * @return ReadableObjectList<static<T>>
@@ -178,31 +201,31 @@ interface ReadableList extends Structure
     function split(int $number): ReadableObjectList;
 
     /**
-     * Reverse the collection
+     * Reverse the list
      *
-     * Returns a new collection with values in reverse order.
+     * Returns a new list with values in reverse order.
      *
      * @return static<T>
      */
     function reverse(): static;
 
     /**
-     * Shuffle the collection
+     * Shuffle the list
      *
-     * Returns a new collection with values in random order.
+     * Returns a new list with values in random order.
      *
      * @return static<T>
      */
     function shuffle(?Randomizer $randomizer = null): static;
 
     /**
-     * Pick N random values from the collection
+     * Pick N random values from the list
      *
      * - the values keep their original order
-     * - if $num is greater than the size of the collection, all values will be returned
-     * - if $num is less than 1, an empty collection will be returned
+     * - if $num is greater than the size of the list, all values will be returned
+     * - if $num is less than 1, an empty list will be returned
      *
-     * Returns a new collection with the randomly chosen values.
+     * Returns a new list with the randomly chosen values.
      *
      * @return static<T>
      */
@@ -213,7 +236,7 @@ interface ReadableList extends Structure
      *
      * The callback should return TRUE to accept a value and FALSE to reject it.
      *
-     * Returns a new collection with all accepted values.
+     * Returns a new list with all accepted values.
      *
      * @param callable(T):bool $filter
      * @return static<T>
@@ -223,7 +246,7 @@ interface ReadableList extends Structure
     /**
      * Apply the callback to all values
      *
-     * Returns a new collection with the modified values.
+     * Returns a new list with the modified values.
      *
      * @template TNext
      *
@@ -242,9 +265,9 @@ interface ReadableList extends Structure
     function walk(callable $callback): void;
 
     /**
-     * Merge the collection with the given iterables
+     * Merge the list with the given iterables
      *
-     * Returns a new collection with the merged values.
+     * Returns a new list with the merged values.
      *
      * @template TOther
      *
@@ -259,7 +282,7 @@ interface ReadableList extends Structure
      * The comparator must return an integer less than, equal to, or greater than zero if the first argument
      * is considered to be respectively less than, equal to, or greater than the second.
      *
-     * Returns a new collection containing all values of this collection that are also present in all the given iterables.
+     * Returns a new list containing all values from this list that are also present in all the given iterables.
      *
      * @template TOther
      *
@@ -270,12 +293,12 @@ interface ReadableList extends Structure
     function intersectUsing(callable $comparator, iterable ...$iterables): static;
 
     /**
-     * Compute a difference between this collection and the given iterables using a custom comparator
+     * Compute a difference between this list and the given iterables using a custom comparator
      *
      * The comparator must return an integer less than, equal to, or greater than zero if the first argument
      * is considered to be respectively less than, equal to, or greater than the second.
      *
-     * Returns a new collection containing all values of this collection that are not present in any of the given iterables.
+     * Returns a new list containing all values from this list that are not present in any of the given iterables.
      *
      * @template TOther
      *
@@ -286,12 +309,12 @@ interface ReadableList extends Structure
     function diffUsing(callable $comparator, iterable ...$iterables): static;
 
     /**
-     * Sort the collection using a custom comparator
+     * Sort the list using a custom comparator
      *
      * The comparator should accept 2 arguments and return an integer less than, equal to, or greater than zero
      * if the first value is considered to be respectively less than, equal to, or greater than the second.
      *
-     * Returns a new sorted collection.
+     * Returns a new sorted list.
      *
      * @param callable(T, T):int $comparator
      * @return static<T>
@@ -311,7 +334,7 @@ interface ReadableList extends Structure
     function group(callable $grouper): ReadableObjectMap;
 
     /**
-     * Map the collection's values using a callback
+     * Map the list's values using a callback
      *
      * The callback should accept 2 arguments (index and value) and return a new key.
      *
@@ -325,7 +348,7 @@ interface ReadableList extends Structure
     function map(callable $mapper): ReadableMap;
 
     /**
-     * Build a map from the collection's values using a callback
+     * Build a map from the list's values using a callback
      *
      * The callback should accept 2 arguments (index and value) and return new key => value pairs.
      *
@@ -340,7 +363,7 @@ interface ReadableList extends Structure
     function buildMap(callable $builder): ReadableMap;
 
     /**
-     * Convert the collection into a map directly
+     * Convert the list into a map directly
      *
      * @return ReadableMap<non-negative-int, T>
      */

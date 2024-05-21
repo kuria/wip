@@ -112,15 +112,52 @@ class Map implements ReadableMap, \ArrayAccess
         return $key !== false ? new Some($key) : new None();
     }
 
-    function findUsing(callable $filter): Maybe
+    /**
+     * @param callable(TKey, TValue):bool $filter
+     * @return Maybe<TValue>
+     */
+    public function findUsing(callable $filter): Maybe
     {
-        foreach ($this->pairs as $key => $value) {
-            if ($filter($value)) {
-                return new Some($key);
+        foreach ($this->pairs as $k => $v) {
+            if ($filter($k, $v)) {
+                return new Some($v);
             }
         }
 
         return new None();
+    }
+
+    function findKeyUsing(callable $filter): Maybe
+    {
+        foreach ($this->pairs as $k => $v) {
+            if ($filter($k, $v)) {
+                return new Some($k);
+            }
+        }
+
+        return new None();
+    }
+
+    function any(callable $filter): bool
+    {
+        foreach ($this->pairs as $k => $v) {
+            if ($filter($k, $v)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function all(callable $filter): bool
+    {
+        foreach ($this->pairs as $k => $v) {
+            if (!$filter($k, $v)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function get(int|string $key): Maybe
@@ -316,8 +353,8 @@ class Map implements ReadableMap, \ArrayAccess
     {
         $result = $initial;
 
-        foreach ($this->pairs as $key => $value) {
-            $result = $reducer($result, $key, $value);
+        foreach ($this->pairs as $k => $v) {
+            $result = $reducer($result, $k, $v);
         }
 
         return $result;
