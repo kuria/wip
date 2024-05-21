@@ -9,11 +9,6 @@ namespace Kuria\Collections;
 interface ReadableScalarList extends ReadableList
 {
     /**
-     * Join all values using a delimiter
-     */
-    function implode(string $delimiter = ''): string;
-
-    /**
      * Calculate the sum of all values (value1 + ... + valueN)
      *
      * All values must be numeric.
@@ -30,6 +25,11 @@ interface ReadableScalarList extends ReadableList
      * Returns 1 if the list is empty.
      */
     function product(): int|float;
+
+    /**
+     * Join all values using a delimiter
+     */
+    function implode(string $delimiter = ''): string;
 
     /**
      * Get unique values
