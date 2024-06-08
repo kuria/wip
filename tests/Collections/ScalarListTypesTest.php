@@ -84,8 +84,8 @@ class ScalarListTypesTest
         testType('int|float', $numbers->product());
         testType('string', $strings->implode(','));
         testType('Kuria\Collections\ScalarList<string>&static', $strings->slice(0, 3));
-        testType('Kuria\Collections\ObjectList<Kuria\Collections\ScalarList<string>&static>', $strings->chunk(10));
-        testType('Kuria\Collections\ObjectList<Kuria\Collections\ScalarList<string>&static>', $strings->split(2));
+        testPsalmType('Kuria\Collections\ObjectList<Kuria\Collections\ScalarList<string>&static>', $strings->chunk(10));
+        testPsalmType('Kuria\Collections\ObjectList<Kuria\Collections\ScalarList<string>&static>', $strings->split(2));
         testType('Kuria\Collections\ScalarList<string>&static', $strings->reverse());
         testType('Kuria\Collections\ScalarList<string>&static', $strings->shuffle());
         testType('Kuria\Collections\ScalarList<string>&static', $strings->pick(3));
@@ -100,13 +100,19 @@ class ScalarListTypesTest
         testType('Kuria\Collections\ScalarList<string>&static', $strings->diffUsing(\strcmp(...), $otherStrings));
         testType('Kuria\Collections\ScalarList<string>&static', $strings->sort());
         testType('Kuria\Collections\ScalarList<string>&static', $strings->sortBy(\strcmp(...)));
-        testType('Kuria\Collections\ObjectMap<int, Kuria\Collections\ScalarList<string>&static>', $strings->group(fn (int $i, string $v) => $int));
-        testType('Kuria\Collections\ObjectMap<string, Kuria\Collections\ScalarList<string>&static>', $strings->group(fn (int $i, string $v) => $string));
+        testPsalmType('Kuria\Collections\ObjectMap<int, Kuria\Collections\ScalarList<string>&static>', $strings->group(fn (int $i, string $v) => $int));
+        testPsalmType('Kuria\Collections\ObjectMap<string, Kuria\Collections\ScalarList<string>&static>', $strings->group(fn (int $i, string $v) => $string));
         testType('Kuria\Collections\ScalarMap<string, string>', $strings->map(fn (int $i, string $v) => $string));
         testType('Kuria\Collections\ScalarMap<int, string>', $strings->map(fn (int $i, string $v) => $int));
         testType('Kuria\Collections\Map<string, int>', $strings->buildMap(fn (int $i, string $v) => yield $string => $int));
         testType('Kuria\Collections\Map<int, string>', $strings->buildMap(fn (int $i, string $v) => yield $int => $string));
         testType('Kuria\Collections\ScalarMap<non-negative-int, string>', $strings->toMap());
+
+        // PHPStan doesn't support @return containing static<T>
+        testExactPHPStanType('Kuria\Collections\ObjectList<Kuria\Collections\Collection<string>>', $strings->chunk(10));
+        testExactPHPStanType('Kuria\Collections\ObjectList<Kuria\Collections\Collection<string>>', $strings->split(2));
+        testExactPHPStanType('Kuria\Collections\ObjectMap<int, Kuria\Collections\Collection<string>>', $strings->group(fn (int $i, string $v) => $int));
+        testExactPHPStanType('Kuria\Collections\ObjectMap<string, Kuria\Collections\Collection<string>>', $strings->group(fn (int $i, string $v) => $string));
     }
 
     /**

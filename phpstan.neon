@@ -51,11 +51,6 @@ parameters:
         - message: '{^Variable property access on TValue of object}'
           path: src/Collections/ObjectMap.php
 
-        # failed type inferrence in insertAfter()/insertBefore() closures (false-positive)
-        - message: '{TMappedKey}'
-          identifier: argument.templateType
-          path: src/Collections/Map.php
-
         # Map::offsetSet() does not accept wrong key types
         - message: '{^Parameter #1 \$offset \(TKey of \(int\|string\)\) of method Kuria\\Collections\\Map::offsetSet\(\) should be contravariant with parameter \$offset}'
           identifier: method.childParameterType
